@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from core.dependencies import get_current_user
 from core.supabase_client import get_supabase
 from models.schemas import ScoreSubmit
-from services import groq_service
+from services import groq_service, github_service
 
 router = APIRouter(prefix="/scores", tags=["scores"])
 
@@ -65,3 +65,53 @@ async def get_ai_suggested_score(team_id: str, round: int = Query(...), user=Dep
     )
     
     return suggestion
+
+@router.post("/verify-suggestion")
+async def verify_suggestion(team_id: str = Body(...), suggestion: str = Body(...), user=Depends(get_current_user)):
+    """v1.5: Verify if a team implemented a judge's suggestion."""
+    if user["role"] not in ["judge", "organizer"]:
+        raise HTTPException(status_code=403, detail="Unauthorized role")
+    
+    sb = get_supabase()
+    
+    # 1. Get team and event info
+    team = sb.table("teams").select("*, events(*)").eq("id", team_id).single().execute()
+    if not team.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    repo_url = team.data.get("repo_url")
+    if not repo_url:
+        return {"implemented": False, "confidence": 100, "rationale": "Team hasn't submitted a repository yet."}
+        
+    # 2. Determine cutoff timestamp (since last judging round)
+    last_score = sb.table("scores").select("created_at").eq("team_id", team_id).order("created_at", desc=True).limit(1).execute()
+    
+    cutoff = None
+    if last_score.data:
+        cutoff = last_score.data[0]["created_at"]
+    else:
+        # Fallback to event start
+        cutoff = team.data["events"]["start_time"]
+        
+    # 3. Fetch commits
+    try:
+        commits = await github_service.get_commits(repo_url, since=cutoff)
+        
+        # 4. Fetch diffs for each commit
+        diff_history = []
+        for c in commits:
+            diff_data = await github_service.get_commit_diff(repo_url, c["sha"])
+            diff_history.append({
+                "sha": c["sha"],
+                "message": c["message"],
+                "files": diff_data["files"]
+            })
+            
+        # 5. Verify via Groq
+        if not diff_history:
+            return {"implemented": False, "confidence": 100, "rationale": "No code changes detected on GitHub since the last evaluation."}
+            
+        result = await groq_service.verify_suggestion_implementation(suggestion, diff_history)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")

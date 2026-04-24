@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
+import logging
 from core.supabase_client import get_supabase
 from core.dependencies import get_current_user
 from models.schemas import CommitPayload
@@ -6,12 +7,18 @@ from services import groq_service
 from datetime import datetime
 
 router = APIRouter(prefix="/commits", tags=["commits"])
+logger = logging.getLogger("commits")
 
 @router.post("/")
 async def ingest_commit(payload: CommitPayload):
     """CLI Commit Ingest - Auth via cli_token (preferred) or team_code."""
     sb = get_supabase()
     user_id = None
+    
+    if payload.patch:
+        logger.info(f"Received commit with patch data ({len(payload.patch)} chars)")
+    else:
+        logger.warning("Received commit WITHOUT patch data")
     
     if payload.cli_token:
         # 1. Validate via personal token
@@ -57,6 +64,7 @@ async def ingest_commit(payload: CommitPayload):
         "event_id": event_id,
         "message": payload.message,
         "files_changed": payload.files_changed,
+        "patch": payload.patch,
         "timestamp": payload.timestamp.isoformat(),
         "ai_summary": summary
     }).execute()

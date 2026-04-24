@@ -3,6 +3,9 @@ from core.config import settings
 import json
 import asyncio
 from typing import List, Dict, Optional, Any
+import logging
+
+logger = logging.getLogger("groq_service")
 
 _client = Groq(api_key=settings.groq_api_key)
 
@@ -156,4 +159,62 @@ async def audit_code_originality(file_name: str, code_content: str, selected_tra
     # Truncate code if too long to fit in context
     user = f"FILE: {file_name}\nCONTENT:\n{code_content[:6000]}"
     raw = await _chat(system, user)
+    return _parse_json(raw)
+
+async def verify_suggestion_implementation(suggestion: str, diff_history: List[Dict]) -> Dict[str, Any]:
+    """v1.5: Verify if a judge's suggestion was implemented based on git diffs."""
+    system = (
+        "You are a technical judge's assistant. You are given a suggestion provided by a judge to a hackathon team, "
+        "and a series of git diffs (patches) representing the team's subsequent changes. "
+        "Determine if the team has implemented the suggested idea. "
+        "Be thorough but fair. If the implementation is partial, mention it. "
+        "Return ONLY JSON: { \"implemented\": boolean, \"confidence\": number (0-100), \"rationale\": string }"
+    )
+    
+    diff_context = ""
+    for commit in diff_history:
+        diff_context += f"\nCOMMIT: {commit['message']}\n"
+        for file in commit.get("files", []):
+            diff_context += f"FILE: {file['filename']}\nPATCH:\n{file['patch']}\n"
+    
+    # Truncate if too long (Groq has limits, let's keep it under ~15k chars for safety in this pass)
+    if len(diff_context) > 15000:
+        diff_context = diff_context[:15000] + "\n... [TRUNCATED]"
+        
+    user = f"JUDGE SUGGESTION: {suggestion}\n\nCOMMIT HISTORY & DIFFS:\n{diff_context}"
+    raw = await _chat(system, user)
+    return _parse_json(raw)
+
+async def verify_task_implementation(task_desc: str, diff_history: List[Dict], dependency_changes: Dict) -> Dict[str, Any]:
+    """v1.5: Verify if a team member implemented an assigned task."""
+    system = (
+        "You are a team lead's AI assistant. Verify if a team member has implemented the assigned task. "
+        "You are given a task description, git diffs of their subsequent commits, and any dependency changes. "
+        "Analyze if: "
+        "1. The task requirements are met. "
+        "2. The code quality is acceptable. "
+        "3. Any new dependencies added are justified and necessary for the task. "
+        "Return ONLY JSON: { \"implemented\": boolean, \"quality_score\": number (0-100), \"dependency_review\": string, \"rationale\": string }"
+    )
+    
+    diff_context = ""
+    for commit in diff_history:
+        diff_context += f"\nCOMMIT: {commit['message']}\n"
+        for file in commit.get("files", []):
+            diff_context += f"FILE: {file['filename']}\nPATCH:\n{file['patch']}\n"
+            
+    if len(diff_context) > 15000:
+        logger.warning(f"Diff context too large ({len(diff_context)} chars). Truncating to 15k.")
+        diff_context = diff_context[:15000] + "\n... [TRUNCATED]"
+    else:
+        logger.info(f"Analyzing task implementation with {len(diff_context)} chars of diff context.")
+        
+    user = (
+        f"TASK DESCRIPTION: {task_desc}\n\n"
+        f"DEPENDENCY CHANGES: {json.dumps(dependency_changes)}\n\n"
+        f"CODE CHANGES (DIFFS):\n{diff_context}"
+    )
+    
+    raw = await _chat(system, user)
+    logger.debug(f"Raw Groq Response: {raw}")
     return _parse_json(raw)

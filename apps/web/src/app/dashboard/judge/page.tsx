@@ -27,6 +27,9 @@ export default function JudgeDashboard() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [judgeSuggestion, setJudgeSuggestion] = useState("")
+  const [verifyingSuggestion, setVerifyingSuggestion] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<any>(null)
 
   const liveNotifications = useNotifications(event?.id, user?.id, "judge") || []
 
@@ -140,8 +143,27 @@ export default function JudgeDashboard() {
   useEffect(() => {
     if (selectedTeam) {
       fetchAiSuggestion(selectedTeam.id)
+      setVerificationResult(null)
+      setJudgeSuggestion("")
     }
   }, [selectedTeam])
+
+  const handleVerifySuggestion = async () => {
+    if (!selectedTeam || !judgeSuggestion.trim()) return
+    setVerifyingSuggestion(true)
+    setVerificationResult(null)
+    try {
+      const res = await api.post("/scores/verify-suggestion", {
+        team_id: selectedTeam.id,
+        suggestion: judgeSuggestion
+      })
+      setVerificationResult(res)
+    } catch (err) {
+      console.error("Verification failed:", err)
+    } finally {
+      setVerifyingSuggestion(false)
+    }
+  }
 
   const handleSubmitScore = async () => {
     if (!selectedTeam || !event) return;
@@ -152,7 +174,7 @@ export default function JudgeDashboard() {
         event_id: event.id,
         round: 1,
         rubric_scores: aiAnalysis?.scores || { "Code Quality": 8, "Complexity": 7, "Completion": 8 },
-        notes: "Scores submitted via Judge Dashboard"
+        notes: `Scores submitted via Judge Dashboard. Suggestion verified: ${judgeSuggestion || 'None'}`
       })
       alert("Scores submitted successfully!")
     } catch (err) {
@@ -426,12 +448,45 @@ export default function JudgeDashboard() {
                        &ldquo;{aiAnalysis?.evaluation || "Scanning team repository... Analyzing code complexity and track alignment. Please hold."}&rdquo;
                     </div>
 
+                    {/* Suggestion Verification Section */}
+                    <div className="pt-2 flex flex-col gap-4">
+                       <div className="flex flex-col gap-2">
+                          <label className="t-micro uppercase opacity-50">Verify Suggestion Implementation</label>
+                          <div className="flex gap-2">
+                             <Input 
+                                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] h-10 font-body text-[12px] text-[var(--text-primary)] focus:border-[var(--signal-ping)] outline-none flex-1 font-mono"
+                                placeholder="ASK: DID THEY IMPLEMENT THE IDEA I SUGGESTED?"
+                                value={judgeSuggestion}
+                                onChange={(e) => setJudgeSuggestion(e.target.value)}
+                             />
+                             <Button 
+                                onClick={handleVerifySuggestion}
+                                disabled={verifyingSuggestion || !judgeSuggestion.trim()}
+                                className="h-10 px-4 bg-[var(--signal-ping)]/10 border border-[var(--signal-ping)]/30 text-[var(--signal-ping)] t-micro uppercase tracking-widest font-bold hover:bg-[var(--signal-ping)]/20 transition-all"
+                             >
+                                {verifyingSuggestion ? "SCANNING_CODE..." : "VERIFY_AI"}
+                             </Button>
+                          </div>
+                          {verificationResult && (
+                             <div className={`p-4 mt-2 border rounded-[4px] font-body text-[12px] leading-relaxed flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-500 ${verificationResult.implemented ? "bg-[var(--signal-clean)]/5 border-[var(--signal-clean)]/30 text-[var(--signal-clean)]" : "bg-[var(--signal-alert)]/5 border-[var(--signal-alert)]/30 text-[var(--signal-alert)]"}`}>
+                                <div className="flex justify-between items-center">
+                                   <span className="font-bold uppercase tracking-widest text-[10px]">
+                                      {verificationResult.implemented ? "✓ IMPLEMENTATION_DETECTED" : "✗ NO_IMPLEMENTATION_FOUND"}
+                                   </span>
+                                   <span className="t-micro opacity-60">AI Confidence: {verificationResult.confidence || 0}%</span>
+                                </div>
+                                <p className="opacity-90 leading-normal">{verificationResult.rationale}</p>
+                             </div>
+                          )}
+                       </div>
+                    </div>
+
                     <div className="pt-6 border-t border-[var(--border)] flex flex-col gap-4">
-                      <div className="flex flex-col gap-2">
-                         <label className="t-micro uppercase opacity-50">Evaluator Notes</label>
-                         <textarea className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-3 font-body text-[13px] text-[var(--text-primary)] h-24 focus:border-[var(--signal-ping)] outline-none transition-all" placeholder="Enter manual feedback here..."></textarea>
-                      </div>
-                      <Button
+                       <div className="flex flex-col gap-2">
+                          <label className="t-micro uppercase opacity-50">Evaluator Notes</label>
+                          <textarea className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-3 font-body text-[13px] text-[var(--text-primary)] h-24 focus:border-[var(--signal-ping)] outline-none transition-all" placeholder="Enter manual feedback here..."></textarea>
+                       </div>
+                       <Button
                         className="w-full h-14 font-bold bg-[var(--signal-ping)] text-[var(--void)] text-[14px] uppercase tracking-[0.1em]"
                         onClick={handleSubmitScore}
                         disabled={submitting}
