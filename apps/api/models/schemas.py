@@ -3,11 +3,16 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 # --- Events ---
+class RubricCriterion(BaseModel):
+    name: str
+    description: Optional[str] = None
+    weight: float = 1.0
+
 class JudgingRound(BaseModel):
     round: int
     start: Optional[str] = None
     end: Optional[str] = None
-    criteria: List[str]
+    criteria: List[RubricCriterion]
 
 class EventCreate(BaseModel):
     event_code: str
@@ -37,6 +42,7 @@ class LocalScanPayload(BaseModel):
     pre_event_files: List[str]
     scan_timestamp: datetime
     team_code: str
+    cli_token: Optional[str] = None
 
 class CommitPayload(BaseModel):
     team_code: str
@@ -44,6 +50,7 @@ class CommitPayload(BaseModel):
     message: str
     files_changed: List[str]
     timestamp: datetime
+    cli_token: Optional[str] = None
 
 # --- Matching & Integrity ---
 class MatchSuggestionUpdate(BaseModel):

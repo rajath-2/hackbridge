@@ -1,9 +1,5 @@
 "use client"
 
-<<<<<<< Updated upstream
-=======
-import { useState, useEffect } from "react"
->>>>>>> Stashed changes
 import { NavBar } from "@/components/dashboard/NavBar"
 import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
 import { Badge } from "@/components/ui/badge"

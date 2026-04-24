@@ -15,6 +15,7 @@ fi
 
 TEAM_CODE=$(node -e "console.log(require('./.hackbridge/state.json').team_code)")
 EVENT_CODE=$(node -e "console.log(require('./.hackbridge/state.json').event_code)")
+CLI_TOKEN=$(node -e "console.log(require('./.hackbridge/state.json').cli_token || '')")
 API_BASE=$(node -e "console.log(require('./.hackbridge/state.json').api_base)")
 
 if [ -z "$TEAM_CODE" ] || [ -z "$API_BASE" ]; then
@@ -32,6 +33,7 @@ curl -X POST "$API_BASE/commits/" \\
   -d '{
     "team_code": "'"$TEAM_CODE"'",
     "event_code": "'"$EVENT_CODE"'",
+    "cli_token": "'"$CLI_TOKEN"'",
     "message": "'"$COMMIT_MSG"'",
     "files_changed": ["'"$FILES_CHANGED"'"],
     "timestamp": "'"$TIMESTAMP"'"

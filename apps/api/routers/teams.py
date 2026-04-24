@@ -46,10 +46,10 @@ async def join_team(payload: TeamJoin, user=Depends(get_current_user)):
 async def validate_team_code(team_code: str):
     """Public CLI endpoint — validates a team_code and returns IDs."""
     sb = get_supabase()
-    team = sb.table("teams").select("id, event_id").eq("team_code", team_code).single().execute()
-    if not team.data:
+    res = sb.table("teams").select("id, event_id").eq("team_code", team_code).execute()
+    if not res.data:
         raise HTTPException(status_code=404, detail="Invalid team code")
-    return {"team_id": team.data["id"], "event_id": team.data["event_id"]}
+    return {"team_id": res.data[0]["id"], "event_id": res.data[0]["event_id"]}
 
 @router.post("/{team_id}/repo")
 async def update_repo(team_id: str, payload: RepoUpdate, user=Depends(get_current_user)):
@@ -75,14 +75,29 @@ async def update_repo(team_id: str, payload: RepoUpdate, user=Depends(get_curren
 
 @router.post("/{team_id}/scan")
 async def ingest_scan(team_id: str, payload: LocalScanPayload):
-    """CLI Scan Ingest - Auth via team_code validation."""
+    """CLI Scan Ingest - Auth via cli_token (preferred) or team_code."""
     sb = get_supabase()
-    team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
-    if not team_resp.data or team_resp.data["team_code"] != payload.team_code:
-        raise HTTPException(status_code=401, detail="Invalid team credentials")
+    
+    if payload.cli_token:
+        # Validate via personal token
+        user_resp = sb.table("users").select("id").eq("cli_token", payload.cli_token).single().execute()
+        if not user_resp.data:
+            raise HTTPException(status_code=401, detail="Invalid personal CLI token")
+        # Check if user is in the team
+        membership = sb.table("team_members").select("team_id").eq("team_id", team_id).eq("user_id", user_resp.data["id"]).execute()
+        if not membership.data:
+             raise HTTPException(status_code=403, detail="User not authorized for this team")
+        
+        # Mark as linked
+        sb.table("users").update({"cli_linked_at": "now()"}).eq("id", user_resp.data["id"]).execute()
+    else:
+        # Fallback to team_code validation
+        team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
+        if not team_resp.data or team_resp.data["team_code"] != payload.team_code:
+            raise HTTPException(status_code=401, detail="Invalid team credentials")
         
     sb.table("teams").update({
-        "local_scan_snapshot": payload.model_dump()
+        "local_scan_snapshot": payload.model_dump(mode='json')
     }).eq("id", team_id).execute()
     
     return {"status": "received"}
@@ -101,15 +116,18 @@ async def get_team_status(team_id: str, user=Depends(get_current_user)):
 @router.get("/{team_id}/cli/status")
 async def get_team_status_cli(team_id: str, team_code: str):
     sb = get_supabase()
-    team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
-    if not team_resp.data or team_resp.data["team_code"] != team_code:
+    res = sb.table("teams").select("team_code").eq("id", team_id).execute()
+    if not res.data or res.data[0]["team_code"] != team_code:
         raise HTTPException(status_code=401, detail="Invalid team credentials")
     
-    team = sb.table("teams").select("*, mentor:mentor_id(name)").eq("id", team_id).single().execute()
+    team_data = sb.table("teams").select("*, mentor:mentor_id(name)").eq("id", team_id).execute()
+    if not team_data.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
     commits = sb.table("commit_logs").select("ai_summary, timestamp").eq("team_id", team_id).order("timestamp", desc=True).limit(5).execute()
     
     return {
-        "team": team.data,
+        "team": team_data.data[0],
         "recent_commits": commits.data
     }
 
@@ -155,3 +173,41 @@ async def mentor_ping_cli(team_id: str, payload: dict = Body(...)):
     }).execute()
     
     return {"status": "sent"}
+
+@router.get("/me")
+async def get_my_team(user=Depends(get_current_user)):
+    sb = get_supabase()
+    # Find team where user is a member or leader, including members and event info
+    res = sb.table("team_members").select("team_id, teams(*, events(event_code), team_members(*, users(name, email)))").eq("user_id", user["id"]).execute()
+    if not res.data:
+         # Check if they are a leader (though they should be in team_members too)
+         res = sb.table("teams").select("*, events(event_code), team_members(*, users(name, email))").eq("leader_id", user["id"]).execute()
+         if not res.data:
+             return None
+         return res.data[0]
+         
+    return res.data[0]["teams"]
+
+@router.get("/mentor/assigned")
+async def get_mentor_teams(user=Depends(get_current_user)):
+    if user["role"] != "mentor":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    sb = get_supabase()
+    res = sb.table("teams").select("*").eq("mentor_id", user["id"]).execute()
+    return res.data
+
+@router.get("/event/{event_id}")
+async def get_teams_by_event(event_id: str, user=Depends(get_current_user)):
+    if user["role"] not in ["organizer", "judge"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    sb = get_supabase()
+    
+    # Check if the organizer owns this event
+    if user["role"] == "organizer":
+        event_resp = sb.table("events").select("created_by").eq("id", event_id).single().execute()
+        if not event_resp.data or event_resp.data["created_by"] != user["id"]:
+            raise HTTPException(status_code=403, detail="You do not have access to this event's teams")
+            
+    res = sb.table("teams").select("*").eq("event_id", event_id).execute()
+    return res.data

@@ -11,7 +11,7 @@ export default function SignupPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"participant" | "mentor" | "organizer">("participant")
+  const [role, setRole] = useState<"participant" | "mentor" | "judge" | "organizer">("participant")
   const [errorMsg, setErrorMsg] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -97,6 +97,7 @@ export default function SignupPage() {
             <Select value={role} onChange={(e) => setRole(e.target.value as any)}>
               <option value="participant">Participant</option>
               <option value="mentor">Mentor</option>
+              <option value="judge">Judge</option>
               <option value="organizer">Organizer</option>
             </Select>
           </div>

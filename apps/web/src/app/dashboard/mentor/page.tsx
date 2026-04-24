@@ -1,9 +1,5 @@
 "use client"
 
-<<<<<<< Updated upstream
-=======
-import { useState, useEffect } from "react"
->>>>>>> Stashed changes
 import { NavBar } from "@/components/dashboard/NavBar"
 import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
 import { StatCard } from "@/components/ui/StatCard"
@@ -12,13 +8,6 @@ import { NotificationCard } from "@/components/ui/NotificationCard"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-<<<<<<< Updated upstream
-=======
-import { ResumeUpload } from "@/components/ui/ResumeUpload"
-import { api } from "@/lib/api"
-import { createClient } from "@/lib/supabase/client"
-import { useNotifications } from "@/hooks/useNotifications"
->>>>>>> Stashed changes
 
 export default function MentorDashboard() {
   const mockPings = [
@@ -32,15 +21,10 @@ export default function MentorDashboard() {
 
   return (
     <div className="min-h-screen dashboard-root">
-<<<<<<< Updated upstream
       <NavBar eventCode="HACK26" role="mentor" />
       
-=======
-      <NavBar eventCode={event?.event_code} role="mentor" />
-
->>>>>>> Stashed changes
       <main className="max-w-[1200px] mx-auto px-6 py-8">
-
+        
         {/* Stat Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <StatCard label="Assigned Teams" value="3" sub="Active" />
@@ -49,7 +33,7 @@ export default function MentorDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
+          
           {/* Pings Column - 35% (approx 1 col of 3) */}
           <div className="flex flex-col gap-2">
             <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
@@ -57,17 +41,7 @@ export default function MentorDashboard() {
             </div>
             {mockPings.map(ping => (
               <div key={ping.id} className="relative">
-<<<<<<< Updated upstream
                 <NotificationCard {...ping} />
-=======
-                <NotificationCard
-                  id={ping.id}
-                  type="MENTOR PING"
-                  message={ping.message}
-                  meta={new Date(ping.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  variant="mentor-ping"
-                />
->>>>>>> Stashed changes
                 <Button variant="ghost" size="sm" className="absolute top-2.5 right-3 text-[10px] text-[var(--hb-amber)] hover:text-[#F0C060]">
                   View team &rarr;
                 </Button>
@@ -86,22 +60,11 @@ export default function MentorDashboard() {
                 <Badge variant="green" className="opacity-50">CodeTitans</Badge>
               </div>
             </div>
-
+            
             <Card variant="base" className="flex-1 overflow-y-auto">
               <div className="flex flex-col">
-<<<<<<< Updated upstream
                 {mockCommits.map(commit => (
                   <CommitFeedItem key={commit.id} hash={commit.hash} message={commit.message} aiSummary={commit.aiSummary} />
-=======
-                {commits.map(commit => (
-                  <CommitFeedItem
-                    key={commit.id}
-                    hash={commit.id.slice(0, 6)}
-                    message={commit.message}
-                    aiSummary={commit.ai_summary}
-                    teamName={commit.teams?.name}
-                  />
->>>>>>> Stashed changes
                 ))}
               </div>
             </Card>
@@ -131,26 +94,9 @@ export default function MentorDashboard() {
           </div>
         </div>
 
-        {/* Resume Upload */}
-        <div className="mb-8 max-w-[480px]">
-          <ResumeUpload role="mentor" />
-        </div>
-
         {/* Notification Feed */}
         <section>
-<<<<<<< Updated upstream
           <NotificationFeed notifications={[]} />
-=======
-          <NotificationFeed
-            notifications={notifications.map(n => ({
-              id: n.id,
-              type: n.type.replace('_', ' ').toUpperCase(),
-              message: n.message,
-              meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-            }))}
-          />
->>>>>>> Stashed changes
         </section>
 
       </main>

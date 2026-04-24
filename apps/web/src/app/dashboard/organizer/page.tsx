@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
+import { JudgingRoundForm } from "@/components/ui/JudgingRoundForm"
+import { Plus, Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
+import { createClient } from "@/lib/supabase/client"
+import { useNotifications } from "@/hooks/useNotifications"
 
 interface Flag {
   id: string | number;
@@ -37,62 +41,313 @@ export default function OrganizerDashboard() {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [activeTab, setActiveTab] = useState<"plagiarism" | "track_drift">("plagiarism");
   const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<any[]>([]);
   const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [allEvents, setAllEvents] = useState<any[]>([]);
+  const [event, setEvent] = useState<any>(null);
+  const [isCreatingNewEvent, setIsCreatingNewEvent] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
-  const fetchData = async () => {
+  // New Event Form State
+  const [eventName, setEventName] = useState("");
+  const [eventCode, setEventCode] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [tracks, setTracks] = useState<string[]>(["General"]);
+  const [rounds, setRounds] = useState<any[]>([
+    { round: 1, criteria: [{ name: "Innovation", description: "", weight: 1.0 }] }
+  ]);
+
+  const notifications = useNotifications(event?.id, user?.id, "organizer");
+
+
+  const loadEventData = async (activeEvent: any) => {
+    if (!activeEvent) {
+      setEvent(null);
+      return;
+    }
+    setEvent(activeEvent);
+    setIsCreatingNewEvent(false);
+    try {
+      const flagsData = await api.get(`/integrity/flags/event/${activeEvent.id}`)
+      setFlags(flagsData)
+
+      const suggestionsData = await api.get(`/mentor-match/suggestions/event/${activeEvent.id}`)
+      setSuggestions(suggestionsData)
+
+      const teamsData = await api.get(`/teams/event/${activeEvent.id}`)
+      setTeams(teamsData)
+    } catch (error) {
+      console.error("Failed to load event data:", error)
+    }
+  }
+
+  const fetchInitialData = async () => {
     setLoading(true)
     try {
-      // Mocked v1.5 data for UI showcase
-      setFlags([
-        { id: 1, teams: { name: "ByteForce" }, flag_type: "plagiarism", risk_level: "High", evidence: "Pre-event commits ratio > 0.5", silenced: false },
-        { id: 2, teams: { name: "SyntaxError" }, flag_type: "plagiarism", risk_level: "Medium", evidence: "Local scan pre-event files ratio > 0.15", silenced: false },
-        { id: 3, teams: { name: "CodeTitans" }, flag_type: "track_deviation", alignment_score: 45, alignment_rationale: "Repo uses React but track is AI/ML", silenced: false }
-      ]);
-      setSuggestions([
-        { id: "1", teams: { name: "ByteForce" }, current_mentor: { name: "Alice" }, suggested_mentor: { name: "Bob" }, current_match_score: 60, suggested_match_score: 90, rationale: "Bob has strong Web3 expertise matching the new commits." }
-      ]);
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      setUser(authUser)
+
+      const events = await api.get("/events/all")
+      setAllEvents(events || [])
+      
+      if (events && events.length > 0) {
+        await loadEventData(events[0])
+      } else {
+        setEvent(null)
+      }
     } catch (error) {
-      console.error("Failed to fetch data:", error)
+      console.error("Failed to fetch initial data:", error)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
+    fetchInitialData()
   }, [])
 
-  const handleSweep = async () => {
+  const handleCreateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventName || !eventCode || !startTime || !endTime) {
+      alert("Please fill in all basic event details.");
+      return;
+    }
+
     setLoading(true);
-    // await api.post("/integrity/sweep/event/123", { trigger: "manual_organizer" })
-    setTimeout(() => {
-      fetchData();
-    }, 1000);
+    try {
+      const payload = {
+        event_code: eventCode,
+        name: eventName,
+        start_time: new Date(startTime).toISOString(),
+        end_time: new Date(endTime).toISOString(),
+        tracks: tracks.filter(t => t.trim() !== ""),
+        judging_rounds: rounds.map(r => ({
+          ...r,
+          start: r.start ? new Date(r.start).toISOString() : undefined,
+          end: r.end ? new Date(r.end).toISOString() : undefined,
+        }))
+      };
+      
+      await api.post("/events/", payload);
+      setIsCreatingNewEvent(false);
+      await fetchInitialData(); 
+    } catch (err) {
+      console.error("Failed to create event:", err);
+      alert("Failed to create event. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const addTrack = () => setTracks([...tracks, ""]);
+  const removeTrack = (index: number) => {
+    const newTracks = [...tracks];
+    newTracks.splice(index, 1);
+    setTracks(newTracks);
+  }
+  const updateTrack = (index: number, val: string) => {
+    const newTracks = [...tracks];
+    newTracks[index] = val;
+    setTracks(newTracks);
+  }
+
+  const addRound = () => setRounds([...rounds, { 
+    round: rounds.length + 1, 
+    criteria: [{ name: "", description: "", weight: 1.0 }] 
+  }]);
+  const removeRound = (index: number) => {
+    const newRounds = [...rounds];
+    newRounds.splice(index, 1);
+    // Re-index rounds
+    const indexedRounds = newRounds.map((r, i) => ({ ...r, round: i + 1 }));
+    setRounds(indexedRounds);
+  }
+  const updateRound = (index: number, data: any) => {
+    const newRounds = [...rounds];
+    newRounds[index] = data;
+    setRounds(newRounds);
+  }
+
+  const handleSweep = async () => {
+    if (!event) return;
+    setLoading(true);
+    try {
+      await api.post(`/integrity/sweep/event/${event.id}`, { trigger: "manual_organizer" })
+      await loadEventData(event)
+    } catch (err) {
+      console.error("Sweep failed:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleMatchScan = async () => {
-    // await api.post("/mentor-match/event/123/run-all")
-    console.log("Match scan triggered");
+    if (!event) return;
+    setLoading(true)
+    try {
+      await api.post(`/mentor-match/event/${event.id}/run-all`, { trigger_stage: "manual" })
+      await loadEventData(event)
+    } catch (err) {
+      console.error("Match scan failed:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSilence = (id: string | number) => {
     setFlags(flags.map(f => f.id === id ? { ...f, silenced: true } : f));
   }
 
-  const mockNotifications = [
-    { id: "1", type: "system", message: "Sweep completed", meta: "Just now", variant: "ai" as const }
-  ];
+  const handleBroadcast = async () => {
+    if (!broadcastMsg || !event) return;
+    try {
+      await api.post('/notifications/broadcast', { event_id: event.id, message: broadcastMsg });
+      setBroadcastMsg("");
+    } catch (err) {
+      console.error("Failed to broadcast:", err);
+    }
+  }
+
+  const mentorPingsCount = notifications.filter(n => n.type === 'mentor_ping').length;
+  const activeFlagsCount = flags.filter(f => !f.silenced).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen dashboard-root flex items-center justify-center">
+        <span className="text-[14px] text-[var(--hb-muted)] animate-hb-pulse">Loading Organizer Dashboard...</span>
+      </div>
+    );
+  }
+
+  const eventDropdown = (
+    <Select 
+      className="w-auto font-mono text-[11px] h-6 py-0 bg-[rgba(99,115,210,0.1)] text-[var(--hb-indigo-bright)] border-[var(--hb-indigo-dim)] cursor-pointer"
+      value={isCreatingNewEvent ? "new" : (event?.id || "new")}
+      onChange={(e) => {
+        if (e.target.value === "new") {
+          setIsCreatingNewEvent(true);
+          setEvent(null);
+        } else {
+          const selected = allEvents.find(ev => ev.id === e.target.value);
+          if (selected) loadEventData(selected);
+        }
+      }}
+    >
+      {allEvents.map(ev => (
+        <option key={ev.id} value={ev.id}>{ev.event_code}</option>
+      ))}
+      <option value="new">+ Create New Event</option>
+    </Select>
+  );
+
+  if (!loading && (!event || isCreatingNewEvent)) {
+    return (
+      <div className="min-h-screen dashboard-root">
+        <NavBar role="organizer" eventDropdown={allEvents.length > 0 ? eventDropdown : undefined} />
+        <main className="max-w-[800px] mx-auto px-6 py-12">
+          <Card variant="elevated" className="p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-[24px] font-bold text-[var(--hb-text)]">Event Setup</h2>
+              {allEvents.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setIsCreatingNewEvent(false)}>Cancel</Button>
+              )}
+            </div>
+            
+            <form onSubmit={handleCreateEvent} className="flex flex-col gap-8">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div className="text-[11px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest border-b border-[var(--hb-border2)] pb-1">
+                  Step 1: Basic Information
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Event Name</label>
+                    <Input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. HackBridge Global 2026" required />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Event Code</label>
+                    <Input value={eventCode} onChange={e => setEventCode(e.target.value)} placeholder="HACK26" required />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Tracks (comma separated placeholder - unused in state flow)</label>
+                    <div className="text-[10px] text-[var(--hb-dim)]">See tracks section below</div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Start Date/Time</label>
+                    <Input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">End Date/Time</label>
+                    <Input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tracks */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-[var(--hb-border2)] pb-1">
+                  <div className="text-[11px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest">
+                    Step 2: Tracks
+                  </div>
+                  <Button variant="secondary" size="sm" type="button" onClick={addTrack} className="h-6 py-0 text-[10px]">
+                    <Plus size={12} /> Add Track
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {tracks.map((track, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input value={track} onChange={e => updateTrack(idx, e.target.value)} placeholder="Track Name" className="flex-1" />
+                      <Button variant="ghost" size="sm" type="button" onClick={() => removeTrack(idx)} className="text-[var(--hb-red)]">
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Judging Rounds */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-[var(--hb-border2)] pb-1">
+                  <div className="text-[11px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest">
+                    Step 3: Judging Rounds & Rubrics
+                  </div>
+                  <Button variant="secondary" size="sm" type="button" onClick={addRound} className="h-6 py-0 text-[10px]">
+                    <Plus size={12} /> Add Round
+                  </Button>
+                </div>
+                
+                {rounds.map((round, idx) => (
+                  <JudgingRoundForm 
+                    key={idx}
+                    data={round}
+                    onChange={(data) => updateRound(idx, data)}
+                    onRemove={() => removeRound(idx)}
+                  />
+                ))}
+              </div>
+              
+              <Button variant="primary" type="submit" disabled={loading} className="mt-4 h-12 text-[15px] shadow-[0_0_20px_rgba(79,98,216,0.3)]">
+                {loading ? "Initializing Hackathon..." : "Initialize Global Event"}
+              </Button>
+            </form>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen dashboard-root">
-      <NavBar eventCode="HACK26" role="organizer" />
+      <NavBar eventDropdown={eventDropdown} role="organizer" />
       
       <main className="max-w-[1200px] mx-auto px-6 py-8">
         {/* Header Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <StatCard label="Teams" value="42" sub="8 pending setup" />
-          <StatCard label="Active Pings" value={<span className="text-[var(--hb-indigo-bright)]">3</span>} sub="Mentors responding" />
-          <StatCard label="Risk Flags" value={<span className="text-[var(--hb-red)]">2</span>} sub="Requiring attention" />
+          <StatCard label="Teams" value={teams.length.toString()} sub={`${teams.filter(t => !t.repo_url).length} pending setup`} />
+          <StatCard label="Active Pings" value={<span className="text-[var(--hb-indigo-bright)]">{mentorPingsCount}</span>} sub="Mentors responding" />
+          <StatCard label="Risk Flags" value={<span className="text-[var(--hb-red)]">{activeFlagsCount}</span>} sub="Requiring attention" />
         </div>
 
         {/* Broadcast Composer */}
@@ -101,8 +356,9 @@ export default function OrganizerDashboard() {
             placeholder="Type a broadcast message to all participants..." 
             value={broadcastMsg}
             onChange={(e) => setBroadcastMsg(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleBroadcast()}
           />
-          <Button variant="primary" onClick={() => setBroadcastMsg("")}>Send</Button>
+          <Button variant="primary" onClick={handleBroadcast}>Send</Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
@@ -167,18 +423,21 @@ export default function OrganizerDashboard() {
             <Card variant="base">
               <div className="flex justify-between items-center py-1 border-b border-[var(--hb-border)] mb-2">
                 <span className="text-[11px] text-[var(--hb-text)]">Total requests today</span>
-                <span className="text-[11px] text-[var(--hb-text)] font-semibold">124</span>
+                <span className="text-[11px] text-[var(--hb-text)] font-semibold">{mentorPingsCount}</span>
               </div>
 
-
-              <div className="flex justify-between items-center py-1">
-                <span className="text-[11px] text-[var(--hb-text)]">ByteForce</span>
-                <span className="text-[11px] text-[var(--hb-muted)]">3 pings</span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-[11px] text-[var(--hb-text)]">CodeTitans</span>
-                <span className="text-[11px] text-[var(--hb-muted)]">2 pings</span>
-              </div>
+              {notifications.filter(n => n.type === 'mentor_ping').slice(0, 5).map((ping, i) => {
+                const team = teams.find(t => t.id === ping.team_id);
+                return (
+                  <div key={i} className="flex justify-between items-center py-1">
+                    <span className="text-[11px] text-[var(--hb-text)]">{team?.name || 'Unknown Team'}</span>
+                    <span className="text-[11px] text-[var(--hb-muted)] truncate max-w-[120px]">{ping.message}</span>
+                  </div>
+                );
+              })}
+              {mentorPingsCount === 0 && (
+                 <div className="text-[11px] text-[var(--hb-muted)] text-center py-2">No active pings.</div>
+              )}
             </Card>
           </div>
         </div>
@@ -239,21 +498,21 @@ export default function OrganizerDashboard() {
               <label className="block text-[11px] text-[var(--hb-muted)] mb-1">1st Place</label>
               <Select>
                 <option value="">Select team...</option>
-                <option value="1">ByteForce</option>
+                {teams.map(t => <option key={`1-${t.id}`} value={t.id}>{t.name}</option>)}
               </Select>
             </div>
             <div className="flex-1">
               <label className="block text-[11px] text-[var(--hb-muted)] mb-1">2nd Place</label>
               <Select>
                 <option value="">Select team...</option>
-                <option value="2">CodeTitans</option>
+                {teams.map(t => <option key={`2-${t.id}`} value={t.id}>{t.name}</option>)}
               </Select>
             </div>
             <div className="flex-1">
               <label className="block text-[11px] text-[var(--hb-muted)] mb-1">3rd Place</label>
               <Select>
                 <option value="">Select team...</option>
-                <option value="3">SyntaxError</option>
+                {teams.map(t => <option key={`3-${t.id}`} value={t.id}>{t.name}</option>)}
               </Select>
             </div>
             <div className="pt-5">
@@ -265,7 +524,15 @@ export default function OrganizerDashboard() {
       </main>
 
       <div className="fixed bottom-0 right-0 w-[320px] p-4 hidden lg:block">
-        <NotificationFeed notifications={mockNotifications} />
+        <NotificationFeed 
+          notifications={notifications.map(n => ({
+            id: n.id,
+            type: n.type.replace('_', ' ').toUpperCase(),
+            message: n.message,
+            meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
+          }))} 
+        />
       </div>
     </div>
   )
