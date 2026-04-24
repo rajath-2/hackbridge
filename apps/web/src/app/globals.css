@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --color-hb-bg: #090B14;
+  --color-hb-surface: #0F1220;
+  --color-hb-surface2: #161928;
+  --color-hb-surface3: #1C2133;
+  --color-hb-indigo: #4F62D8;
+  --color-hb-indigo-bright: #6373E8;
+  --color-hb-indigo-dim: rgba(79, 98, 216, 0.13);
+  --color-hb-indigo-glow: rgba(79, 98, 216, 0.28);
+  --color-hb-cyan: #38BDF8;
+  --color-hb-cyan-dim: rgba(56, 189, 248, 0.10);
+  --color-hb-amber: #E8A020;
+  --color-hb-amber-dim: rgba(232, 160, 32, 0.11);
+  --color-hb-green: #22C55E;
+  --color-hb-green-dim: rgba(34, 197, 94, 0.10);
+  --color-hb-red: #F04C4C;
+  --color-hb-red-dim: rgba(240, 76, 76, 0.11);
+  
+  --color-hb-text: #DCE0F0;
+  --color-hb-muted: rgba(220, 224, 240, 0.52);
+  --color-hb-dim: rgba(220, 224, 240, 0.28);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    --hb-bg: #090B14;
+    --hb-surface: #0F1220;
+    --hb-surface2: #161928;
+    --hb-surface3: #1C2133;
+    --hb-border: rgba(99, 115, 210, 0.12);
+    --hb-border2: rgba(99, 115, 210, 0.22);
+    --hb-indigo: #4F62D8;
+    --hb-indigo-bright: #6373E8;
+    --hb-indigo-dim: rgba(79, 98, 216, 0.13);
+    --hb-indigo-glow: rgba(79, 98, 216, 0.28);
+    --hb-cyan: #38BDF8;
+    --hb-cyan-dim: rgba(56, 189, 248, 0.10);
+    --hb-amber: #E8A020;
+    --hb-amber-dim: rgba(232, 160, 32, 0.11);
+    --hb-green: #22C55E;
+    --hb-green-dim: rgba(34, 197, 94, 0.10);
+    --hb-red: #F04C4C;
+    --hb-red-dim: rgba(240, 76, 76, 0.11);
+    --hb-text: #DCE0F0;
+    --hb-muted: rgba(220, 224, 240, 0.52);
+    --hb-dim: rgba(220, 224, 240, 0.28);
+  }
+
+  body {
+    background-color: var(--hb-bg);
+    color: var(--hb-text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@keyframes hb-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+@keyframes notif-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes page-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-hb-pulse {
+  animation: hb-pulse 1.6s ease-in-out infinite;
+}
+
+.animate-notif-in {
+  animation: notif-in 0.2s ease;
+}
+
+.animate-page-in {
+  animation: page-in 0.2s ease;
+}
+
+.score-bar { 
+  transition: width 0.4s ease; 
+}
