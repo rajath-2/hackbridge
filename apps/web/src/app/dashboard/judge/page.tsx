@@ -1,10 +1,15 @@
 "use client"
 
+<<<<<<< Updated upstream
+=======
+import { useState, useEffect } from "react"
+>>>>>>> Stashed changes
 import { NavBar } from "@/components/dashboard/NavBar"
 import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ResumeUpload } from "@/components/ui/ResumeUpload"
 import { ScoreBar } from "@/components/ui/ScoreBar"
 
 export default function JudgeDashboard() {
@@ -87,6 +92,11 @@ export default function JudgeDashboard() {
             </Card>
           </div>
 
+        </div>
+
+        {/* Resume Upload */}
+        <div className="mb-8 max-w-[480px]">
+          <ResumeUpload role="judge" />
         </div>
 
         {/* Notification Feed */}
