@@ -12,7 +12,7 @@ program
   .description('HackBridge Event Intelligence CLI')
   .version('1.5.0');
 program
-  .command('init <team_code>')
+  .command('init <cli_token>')
   .description('Initialize HackBridge in the current repository')
   .option('--api <url>', 'Override Backend API URL', 'http://localhost:8000')
   .action(initAction);

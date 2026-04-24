@@ -14,7 +14,7 @@ BEGIN
     VALUES (
         NEW.id,
         NEW.email,
-        (NEW.raw_user_meta_data->>'role')::user_role,
+        (NEW.raw_user_meta_data->>'role')::public.user_role,
         COALESCE(NEW.raw_user_meta_data->>'name', ''),
         'HB-' || upper(substr(md5(random()::text), 0, 10))
     );

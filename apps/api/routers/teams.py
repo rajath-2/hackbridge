@@ -46,10 +46,10 @@ async def join_team(payload: TeamJoin, user=Depends(get_current_user)):
 async def validate_team_code(team_code: str):
     """Public CLI endpoint — validates a team_code and returns IDs."""
     sb = get_supabase()
-    team = sb.table("teams").select("id, event_id").eq("team_code", team_code).single().execute()
-    if not team.data:
+    res = sb.table("teams").select("id, event_id").eq("team_code", team_code).execute()
+    if not res.data:
         raise HTTPException(status_code=404, detail="Invalid team code")
-    return {"team_id": team.data["id"], "event_id": team.data["event_id"]}
+    return {"team_id": res.data[0]["id"], "event_id": res.data[0]["event_id"]}
 
 @router.post("/{team_id}/repo")
 async def update_repo(team_id: str, payload: RepoUpdate, user=Depends(get_current_user)):
@@ -97,7 +97,7 @@ async def ingest_scan(team_id: str, payload: LocalScanPayload):
             raise HTTPException(status_code=401, detail="Invalid team credentials")
         
     sb.table("teams").update({
-        "local_scan_snapshot": payload.model_dump()
+        "local_scan_snapshot": payload.model_dump(mode='json')
     }).eq("id", team_id).execute()
     
     return {"status": "received"}
@@ -116,15 +116,18 @@ async def get_team_status(team_id: str, user=Depends(get_current_user)):
 @router.get("/{team_id}/cli/status")
 async def get_team_status_cli(team_id: str, team_code: str):
     sb = get_supabase()
-    team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
-    if not team_resp.data or team_resp.data["team_code"] != team_code:
+    res = sb.table("teams").select("team_code").eq("id", team_id).execute()
+    if not res.data or res.data[0]["team_code"] != team_code:
         raise HTTPException(status_code=401, detail="Invalid team credentials")
     
-    team = sb.table("teams").select("*, mentor:mentor_id(name)").eq("id", team_id).single().execute()
+    team_data = sb.table("teams").select("*, mentor:mentor_id(name)").eq("id", team_id).execute()
+    if not team_data.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
     commits = sb.table("commit_logs").select("ai_summary, timestamp").eq("team_id", team_id).order("timestamp", desc=True).limit(5).execute()
     
     return {
-        "team": team.data,
+        "team": team_data.data[0],
         "recent_commits": commits.data
     }
 

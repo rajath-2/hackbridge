@@ -18,10 +18,9 @@ export async function initAction(cliToken: string, options: any) {
 
     // 1. Validate personal token and fetch context
     const validateResp = await axios.post(`${apiBase}/users/validate-cli-token/${cliToken}`);
-    const { team_id, team_code, event_id, event_code, user_name } = validateResp.data;
+    const { team_id, team_code, event_id, event_code, user_name, event_start_time } = validateResp.data;
 
-    const eventResp = await axios.get(`${apiBase}/events/${event_id}`);
-    const startTime = new Date(eventResp.data.start_time);
+    const startTime = new Date(event_start_time);
 
     console.log(chalk.green(`✓ Hello ${user_name}! Personal link verified. Initializing team ${team_code}...`));
 
