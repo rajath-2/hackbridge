@@ -32,33 +32,67 @@ export default function ParticipantDashboard() {
   const [newTeamName, setNewTeamName] = useState("")
   const [selectedEventId, setSelectedEventId] = useState("")
   const [selectedTrack, setSelectedTrack] = useState("")
+  const [event, setEvent] = useState<any>(null)
   const [cliToken, setCliToken] = useState("")
   const [cliLinkedAt, setCliLinkedAt] = useState<string | null>(null)
 
-  const notifications = useNotifications(team?.event_id, user?.id, "participant")
+  const hookNotifs = useNotifications(team?.event_id, user?.id, "participant")
+  const [notifications, setNotifs] = useState<any[]>([])
+  useEffect(() => {
+    if (Array.isArray(hookNotifs)) setNotifs(hookNotifs)
+  }, [hookNotifs])
 
   useEffect(() => {
     const init = async () => {
       try {
         const supabase = createClient()
         const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (!authUser) { setLoading(false); return }
         setUser(authUser)
 
-        const teamData = await api.get("/teams/me")
+        // Find team via team_members → teams join
+        const { data: memberRow } = await supabase
+          .from("team_members")
+          .select("team_id")
+          .eq("user_id", authUser.id)
+          .maybeSingle()
+
+        if (!memberRow) {
+          // Not in a team — load events for onboarding
+          const { data: eventsData } = await supabase
+            .from("events")
+            .select("id, event_code, name, tracks")
+            .order("created_at", { ascending: false })
+          setEvents(eventsData || [])
+          setLoading(false)
+          return
+        }
+
+        // Fetch full team data
+        const { data: teamData } = await supabase
+          .from("teams")
+          .select("*, events(event_code, start_time, end_time, name), team_members(user_id, users(name, email))")
+          .eq("id", memberRow.team_id)
+          .single()
+
         setTeam(teamData)
         setRepoUrl(teamData?.repo_url || "")
 
-        const { cli_token, cli_linked_at } = await api.get("/users/me/cli-token")
-        setCliToken(cli_token)
-        setCliLinkedAt(cli_linked_at)
+        // CLI token
+        try {
+          const { cli_token, cli_linked_at } = await api.get("/users/me/cli-token")
+          setCliToken(cli_token)
+          setCliLinkedAt(cli_linked_at)
+        } catch (e) { console.error("CLI token fetch failed:", e) }
 
+        // Fetch mentor if assigned
         if (teamData?.mentor_id) {
           const { data: mentorData } = await supabase
             .from("users")
             .select("*, mentor_profiles(*)")
             .eq("id", teamData.mentor_id)
-            .single()
-          setMentor(mentorData)
+            .maybeSingle()
+          if (mentorData) setMentor(mentorData)
         }
 
         if (teamData) {
@@ -69,6 +103,15 @@ export default function ParticipantDashboard() {
         if (!teamData) {
           const eventsData = await api.get("/events/all")
           setEvents(eventsData)
+        }
+
+        if (teamData?.event_id) {
+          const { data: eventData } = await supabase
+            .from("events")
+            .select("*")
+            .eq("id", teamData.event_id)
+            .maybeSingle()
+          setEvent(eventData)
         }
       } catch (err) {
         console.error("Failed to init dashboard:", err)
@@ -97,10 +140,10 @@ export default function ParticipantDashboard() {
     if (!newTeamName || !selectedEventId || !selectedTrack) return
     setLoading(true)
     try {
-      await api.post("/teams", { 
-        name: newTeamName, 
-        event_id: selectedEventId, 
-        selected_track: selectedTrack 
+      await api.post("/teams", {
+        name: newTeamName,
+        event_id: selectedEventId,
+        selected_track: selectedTrack
       })
       window.location.reload()
     } catch (err) {
@@ -110,12 +153,30 @@ export default function ParticipantDashboard() {
     }
   }
 
-  const timelineItems: TimelineItem[] = [
-    { status: 'done', label: 'Hacking Begins', time: '10:00 AM' },
-    { status: 'active', label: 'Check-in 1', time: '2:00 PM' },
-    { status: 'pending', label: 'Check-in 2', time: '8:00 PM' },
-    { status: 'pending', label: 'Submissions Close', time: '10:00 AM (Sun)' },
-  ];
+  // Build timeline from real event data
+  const buildTimeline = (): TimelineItem[] => {
+    if (!event) return [{ status: 'pending' as const, label: 'Loading...', time: '' }]
+    const now = new Date()
+    const start = event.start_time ? new Date(event.start_time) : null
+    const end = event.end_time ? new Date(event.end_time) : null
+    const items: TimelineItem[] = []
+    if (start) {
+      items.push({
+        status: now >= start ? 'done' as const : 'pending' as const,
+        label: 'Hacking Begins',
+        time: start.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      })
+    }
+    if (end) {
+      items.push({
+        status: now >= end ? 'done' as const : (now >= start! ? 'active' as const : 'pending' as const),
+        label: 'Submissions Close',
+        time: end.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      })
+    }
+    return items.length > 0 ? items : [{ status: 'pending' as const, label: 'No schedule set', time: '' }]
+  }
+  const timelineItems = buildTimeline()
 
   const handleAnalyse = async () => {
     if (!team || !repoUrl) return
@@ -143,404 +204,454 @@ export default function ParticipantDashboard() {
 
   if (!team) {
     return (
-      <div className="min-h-screen dashboard-root">
+      <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
         <NavBar role="participant" />
-        <main className="max-w-[1200px] mx-auto px-6 py-12 flex flex-col items-center">
-            <h1 className="text-[24px] font-bold text-[var(--hb-text)] mb-2">Welcome to HackBridge</h1>
-            <p className="text-[14px] text-[var(--hb-muted)] mb-12">You are not in a team yet. Choose an option to get started.</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-                {/* Join Team */}
-                <Card variant="elevated" className="p-8 flex flex-col">
-                    <h2 className="text-[18px] font-semibold text-[var(--hb-text)] mb-4">Join an Existing Team</h2>
-                    <p className="text-[12px] text-[var(--hb-muted)] mb-6 flex-1">Enter the team code shared by your team leader to join their workspace.</p>
-                    <div className="flex flex-col gap-4">
-                        <Input 
-                          placeholder="TEAM-CODE" 
-                          value={joinCode} 
-                          onChange={(e) => setJoinCode(e.target.value.toUpperCase())} 
-                        />
-                        <Button variant="primary" onClick={handleJoinTeam}>Join Team</Button>
-                    </div>
-                </Card>
-
-                {/* Create Team */}
-                <Card variant="elevated" className="p-8 flex flex-col">
-                    <h2 className="text-[18px] font-semibold text-[var(--hb-text)] mb-4">Create a New Team</h2>
-                    <p className="text-[12px] text-[var(--hb-muted)] mb-6 flex-1">Start a new project and invite others to join using your team code.</p>
-                    <div className="flex flex-col gap-4">
-                        <Input 
-                          placeholder="Team Name" 
-                          value={newTeamName} 
-                          onChange={(e) => setNewTeamName(e.target.value)} 
-                        />
-                        <Select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)}>
-                            <option value="">Select Event...</option>
-                            {events.map(e => (
-                              <option key={e.id} value={e.id}>{e.name} ({e.event_code})</option>
-                            ))}
-                        </Select>
-                        <Select value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)}>
-                            <option value="">Select Track...</option>
-                            <option value="Web3">Web3</option>
-                            <option value="AI/ML">AI/ML</option>
-                            <option value="Social Impact">Social Impact</option>
-                            <option value="General">General</option>
-                        </Select>
-                        <Button variant="primary" onClick={handleCreateTeam}>Create Team</Button>
-                    </div>
-                </Card>
+        <main className="flex-1 flex flex-col items-center justify-center p-6 bg-[rgba(0,255,194,0.02)]">
+          <div className="w-full max-w-[900px] bg-[var(--surface-1)] border border-[var(--border-hot)] rounded-[4px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <div className="bg-[var(--surface-2)] border-b border-[var(--border-hot)] px-6 py-4 flex flex-col">
+              <span className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.2em]">Deployment Sequence</span>
+              <h2 className="font-display text-[24px] font-bold text-[var(--text-primary)]">NODE_AUTHENTICATION_REQUIRED</h2>
             </div>
+
+            <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-10">
+              {/* Join Team */}
+              <div className="flex flex-col">
+                <div className="font-ui text-[11px] text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border)] pb-2 mb-6">
+                  OPTION_01: JOIN_EXISTING_NODE
+                </div>
+                <p className="font-body text-[13px] text-[var(--text-secondary)] mb-6 flex-1 leading-relaxed">
+                  Enter the unique node identifier (team code) to sync with an established squad.
+                </p>
+                <div className="flex flex-col gap-4">
+                  <Input
+                    placeholder="e.g. BYT-X4K"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-mono tracking-wider"
+                  />
+                  <Button variant="primary" onClick={handleJoinTeam} className="h-11 font-bold">INITIATE_SYNC</Button>
+                </div>
+              </div>
+
+              {/* Create Team */}
+              <div className="flex flex-col border-l border-[var(--border)] pl-10">
+                <div className="font-ui text-[11px] text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border)] pb-2 mb-6">
+                  OPTION_02: INITIALIZE_NEW_NODE
+                </div>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Node Designation</label>
+                    <Input
+                      placeholder="Team Name"
+                      value={newTeamName}
+                      onChange={(e) => setNewTeamName(e.target.value)}
+                      className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Target Sector</label>
+                    <Select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]">
+                      <option value="">Select Event...</option>
+                      {events.map(e => (
+                        <option key={e.id} value={e.id}>{e.name} ({e.event_code})</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Operational Track</label>
+                    <Select value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)} className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]">
+                      <option value="">Select Track...</option>
+                      {(() => {
+                        const selectedEvent = events.find(e => e.id === selectedEventId)
+                        const tracks = selectedEvent?.tracks || []
+                        return tracks.length > 0
+                          ? tracks.map((t: string) => <option key={t} value={t}>{t}</option>)
+                          : <option value="General">General</option>
+                      })()}
+                    </Select>
+                  </div>
+                  <Button variant="secondary" onClick={handleCreateTeam} className="h-11 font-bold">BOOT_NEW_NODE</Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
     )
   }
 
+  const tickerContent = [
+    { type: "DEPLOY", id: team.team_code, team: team.name, msg: "Node fully operational in " + (team.selected_track || "General") },
+    { type: "SIGNAL", id: "0x1", team: "ADMIN", msg: "Hackathon protocol active. Monitoring commits." },
+    { type: "TIMELINE", id: "INF", team: "SYSTEM", msg: "Next milestone: " + (timelineItems.find(i => i.status === 'active')?.label || "Awaiting Start") },
+  ];
+
   return (
-    <div className="min-h-screen dashboard-root">
-      <NavBar eventCode={team?.events?.event_code || "HACK26"} role="participant" />
+    <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
+      {/* Live Ticker Bar */}
+      <div className="h-[32px] bg-[rgba(0,255,194,0.08)] border-b border-[rgba(0,255,194,0.2)] overflow-hidden flex items-center w-full">
+        <div className="ticker-track whitespace-nowrap flex items-center">
+          {[...tickerContent, ...tickerContent, ...tickerContent].map((item, i) => (
+            <span key={i} className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.1em] mx-4">
+              <span className="mr-2">{item.type === 'DEPLOY' ? '●' : (item.type === 'SIGNAL' ? '⚑' : '◎')}</span>
+              {item.type} {item.id} · {item.team} · {item.msg}
+              <span className="ml-8 opacity-30">·····</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <NavBar eventCode={event?.event_code || team?.events?.event_code || ""} role="participant" />
       
-      <main className="max-w-[1200px] mx-auto px-6 py-8">
-        
-        {/* Tab Toggle */}
-        <div className="flex gap-4 mb-8 border-b border-[var(--hb-border)]">
-          <button 
+      <div className="flex flex-1 overflow-hidden h-[calc(100vh-96px)]">
+        <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] overflow-y-auto flex flex-col">
+          {/* Sidebar (240px) */}
+          <div 
             onClick={() => setActiveTab("overview")}
-            className={`pb-2 text-[12px] font-bold uppercase tracking-widest transition-all ${activeTab === "overview" ? "text-[var(--hb-indigo-bright)] border-b-2 border-[var(--hb-indigo-bright)]" : "text-[var(--hb-muted)]"}`}
+            className={`px-6 py-2 flex items-center h-[40px] cursor-pointer transition-all border-l-4 ${activeTab === 'overview' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[rgba(0,255,194,0.04)]" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)]"} font-ui text-[12px]`}
           >
             Overview
-          </button>
-          <button 
+          </div>
+          <div 
             onClick={() => setActiveTab("sync")}
-            className={`pb-2 text-[12px] font-bold uppercase tracking-widest transition-all ${activeTab === "sync" ? "text-[var(--hb-indigo-bright)] border-b-2 border-[var(--hb-indigo-bright)]" : "text-[var(--hb-muted)]"}`}
+            className={`px-6 py-2 flex items-center h-[40px] cursor-pointer transition-all border-l-4 ${activeTab === 'sync' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[rgba(0,255,194,0.04)]" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)]"} font-ui text-[12px]`}
           >
-            Team Sync & Collab
-          </button>
-        </div>
-
-        {activeTab === "overview" ? (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+            Team Sync
+            {(() => {
+              const driftCount = collabData?.environments?.filter((env: any) => {
+                const officialDeps = collabData?.official_state?.dependencies || {};
+                for (const [name, reqVer] of Object.entries(officialDeps)) {
+                  if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) return true;
+                }
+                return false;
+              }).length || 0;
+              return driftCount > 0 ? (
+                <span className="ml-auto font-ui text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[rgba(255,45,85,0.15)] text-[var(--signal-alert)] border border-[rgba(255,45,85,0.4)]">{driftCount}</span>
+              ) : null;
+            })()}
+          </div>
           
-          {/* Left Column - 40% */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            
-            <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
-                Team Info
-              </div>
-              <Card variant="base">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-[15px] font-semibold text-[var(--hb-text)]">{team.name}</h2>
-                    <p className="text-[11px] text-[var(--hb-muted)]">{team.selected_track || "No track selected"}</p>
-                  </div>
-                  <Badge variant="indigo">{team.team_code}</Badge>
-                </div>
-              </Card>
-            </section>
-
-            <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
-                Team Members
-              </div>
-              <Card variant="base" className="flex flex-col gap-2">
-                {team.team_members?.map((member: any) => (
-                  <div key={member.user_id} className="flex items-center gap-2 py-1 border-b border-[var(--hb-border)] last:border-0">
-                    <div className="w-6 h-6 rounded-full bg-[var(--hb-surface3)] flex items-center justify-center text-[10px] font-bold text-[var(--hb-indigo-bright)]">
-                      {member.users?.name?.charAt(0) || "U"}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[11px] text-[var(--hb-text)] font-medium">{member.users?.name || "Anonymous"}</span>
-                      <span className="text-[9px] text-[var(--hb-muted)]">{member.users?.email}</span>
-                    </div>
-                    {member.user_id === team.leader_id && (
-                      <Badge variant="indigo" className="ml-auto text-[8px] px-1.5 py-0">Leader</Badge>
-                    )}
-                  </div>
-                ))}
-              </Card>
-            </section>
-
-            <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
-                Event Timeline
-              </div>
-              <Card variant="base">
-                <Timeline items={timelineItems} />
-              </Card>
-            </section>
-
+          <div className="mt-8 py-2 px-6 font-ui text-[9px] text-[var(--text-muted)] tracking-[0.2em] uppercase">Operations</div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Repository
+          </div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Logs
           </div>
 
-          {/* Right Column - 60% */}
-          <div className="lg:col-span-3 flex flex-col gap-6">
-            
-            <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
-                Assigned Mentor
-              </div>
-              {mentor ? (
-                <MentorCard 
-                  teamId={team.id}
-                  name={mentor.name}
-                  initials={mentor.name.split(" ").map((n: string) => n[0]).join("")}
-                  matchPct={team.mentor_match_score || 0}
-                  tags={mentor.mentor_profiles?.expertise_tags || []}
-                />
-              ) : (
-                <Card variant="base" className="text-center py-6 text-[11px] text-[var(--hb-muted)] italic">
-                  Waiting for initial activity to match...
-                </Card>
-              )}
-            </section>
-
-            <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
-                GitHub Repository
-              </div>
-              <Card variant="base" className="flex flex-col gap-3">
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="https://github.com/username/repo" 
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
-                  />
-                  <Button variant="secondary" onClick={handleAnalyse} disabled={loading}>
-                    {loading ? "Analyzing..." : "Analyse"}
-                  </Button>
-                </div>
-                
-                {(analyzed || (team?.repo_fingerprint && (team.repo_fingerprint.primary_language || team.repo_fingerprint.languages?.length > 0))) && (
-                  <Card variant="ai">
-                    Groq Analysis: Detected {team?.repo_fingerprint?.primary_language || team?.repo_fingerprint?.languages?.[0] || "General Stack"} 
-                    {(team?.repo_fingerprint?.tech_stack?.length > 0 || team?.repo_fingerprint?.frameworks?.length > 0) ? 
-                      ` with ${(team.repo_fingerprint.tech_stack || team.repo_fingerprint.frameworks)?.join(", ")}` : ""}. 
-                    {team?.mentor_match_score ? ` Initial match score: ${team.mentor_match_score}%` : ""}
-                  </Card>
-                )}
-              </Card>
-            </section>
-
-            <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2 flex justify-between items-center">
-                <span>CLI Integration</span>
-                <Badge variant="indigo" className="text-[9px]">Personal Link</Badge>
-              </div>
-              <CLIBlock 
-                prompt={`hackbridge init ${cliToken || "YOUR_PERSONAL_TOKEN"}`}
-                successMessage={cliLinkedAt ? "Personal CLI linked. Your activity will now be attributed to you." : undefined}
-              />
-              <p className="text-[9px] text-[var(--hb-muted)] mt-2 italic text-center">
-                This token is unique to you. Do not share it with others.
-              </p>
-            </section>
-
+          <div className="mt-8 mb-4">
+            <NotificationFeed
+              notifications={notifications.map(n => ({
+                id: n.id,
+                type: n.type.replace('_', ' ').toUpperCase(),
+                message: n.message,
+                meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
+              }))}
+            />
           </div>
 
-        </div>
-        ) : (
-          <div className="flex flex-col gap-8 mb-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Connected Nodes */}
-              <div className="lg:col-span-1 flex flex-col gap-4">
-                <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em]">
-                  Connected Nodes ({collabData?.environments?.length || 0})
+          <div className="mt-auto p-6">
+             <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
+                <div className="font-ui text-[9px] text-[var(--text-muted)] uppercase tracking-widest">Station ID</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] animate-pulse" />
+                  <span className="font-ui text-[11px] text-[var(--text-primary)]">{team.team_code}</span>
                 </div>
-                <div className="flex flex-col gap-2">
-                  {collabData?.environments?.map((env: any) => {
-                    const isActive = (Date.now() - new Date(env.last_active).getTime()) < 10 * 60 * 1000;
-                    return (
-                      <Card 
-                        key={env.id} 
-                        variant="base" 
-                        className={`p-4 cursor-pointer transition-all hover:border-[var(--hb-indigo-bright)] ${selectedEnvId === env.id ? "border-[var(--hb-indigo-bright)] bg-[var(--hb-surface2)]" : ""}`}
-                        onClick={() => setSelectedEnvId(env.id)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${isActive ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-neutral-600"}`} />
-                            <span className="text-[13px] font-semibold text-[var(--hb-text)]">{env.users?.name}</span>
-                          </div>
-                          <Badge variant={isActive ? "indigo" : "amber"}>{isActive ? "Online" : "Offline"}</Badge>
-                        </div>
-                        <div className="mt-2 text-[10px] text-[var(--hb-muted)] font-mono">
-                          Last sync: {new Date(env.last_active).toLocaleTimeString()}
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
+             </div>
+          </div>
+        </aside>
 
-                <Card variant="elevated" className="p-4 mt-4 bg-[var(--hb-surface2)] border-[var(--hb-indigo)]/20">
-                  <h3 className="text-[12px] font-bold text-[var(--hb-text)] mb-2 uppercase tracking-wider">Sync Command</h3>
-                  <code className="text-[11px] text-[var(--hb-indigo-bright)] font-mono">hackbridge collab sync</code>
-                </Card>
-              </div>
-
-              {/* Environment Audit */}
-              <div className="lg:col-span-2 flex flex-col gap-4">
-                <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em]">
-                  Environment Audit vs Official Master
-                </div>
-                <Card variant="base" className="overflow-hidden">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="bg-[var(--hb-surface3)] text-[var(--hb-muted)] uppercase tracking-tighter">
-                      <tr>
-                        <th className="px-4 py-3">User</th>
-                        <th className="px-4 py-3">Runtime</th>
-                        <th className="px-4 py-3">Key Packages</th>
-                        <th className="px-4 py-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--hb-border)]">
-                      {collabData?.environments?.map((env: any) => {
-                        // Dynamically determine primary runtime (Node, Python, Go, Rust)
-                        const runtime = env.tools?.["node"] ? `Node ${env.tools["node"]}` : 
-                                       env.tools?.["python"] ? `Py ${env.tools["python"]}` : 
-                                       env.tools?.["go"] ? `Go ${env.tools["go"]}` : 
-                                       env.tools?.["rustc"] ? `Rust ${env.tools["rustc"]}` : "Unknown";
-                        
-                        // Get top 2 key dependencies
-                        const deps = Object.entries(env.dependencies || {})
-                          .filter(([k]) => !k.includes("eslint") && !k.includes("types"))
-                          .slice(0, 2)
-                          .map(([k, v]) => `${k.split(':').pop()}: ${v}`)
-                          .join(", ");
-
-                        const officialDeps = collabData?.official_state?.dependencies || {};
-                        let isDrifting = false;
-                        for (const [name, reqVer] of Object.entries(officialDeps)) {
-                          if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) {
-                            isDrifting = true;
-                            break;
-                          }
-                        }
-                        
-                        return (
-                          <tr key={env.id} className="hover:bg-[var(--hb-surface2)] transition-colors">
-                            <td className="px-4 py-3 font-medium text-[var(--hb-text)]">{env.users?.name}</td>
-                            <td className="px-4 py-3 font-mono text-[var(--hb-muted)]">{runtime}</td>
-                            <td className={`px-4 py-3 font-mono ${isDrifting ? "text-red-400 font-bold" : "text-[var(--hb-muted)]"}`}>
-                              {deps || "No deps synced"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {isDrifting ? (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-red-950/30 text-red-400 border border-red-800/50 rounded">DRIFT</span>
-                              ) : (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-green-950/20 text-green-500 border border-green-800/30 rounded">SYNCED</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {(!collabData?.environments || collabData.environments.length === 0) && (
-                    <div className="p-8 text-center text-[var(--hb-muted)] italic">No environment data synced yet.</div>
-                  )}
-                </Card>
-
-                {/* Expanded Detail View */}
-                {selectedEnvId && collabData?.environments?.find((e: any) => e.id === selectedEnvId) && (
-                  <Card variant="base" className="p-6 border-[var(--hb-indigo)]/30 animate-in fade-in slide-in-from-top-2">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-[14px] font-bold text-[var(--hb-text)] uppercase tracking-widest">
-                        Node Report: {collabData.environments.find((e: any) => e.id === selectedEnvId).users?.name}
-                      </h3>
-                      <button onClick={() => setSelectedEnvId(null)} className="text-[var(--hb-muted)] hover:text-white">✕</button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      {/* Full Dependencies */}
-                      <div className="flex flex-col gap-2">
-                        <div className="text-[9px] text-[var(--hb-indigo-bright)] uppercase font-bold">All Dependencies</div>
-                        <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                          {Object.entries(collabData.environments.find((e: any) => e.id === selectedEnvId).dependencies || {}).map(([k, v]: [any, any]) => (
-                            <div key={k} className="flex justify-between py-1 border-b border-[var(--hb-border)] text-[10px]">
-                              <span className="text-[var(--hb-muted)] font-mono">{k.split(':').pop()}</span>
-                              <span className="text-[var(--hb-text)] font-mono">{v}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* System Tools */}
-                      <div className="flex flex-col gap-2">
-                        <div className="text-[9px] text-[var(--hb-indigo-bright)] uppercase font-bold">System Runtimes</div>
-                        <div className="flex flex-col gap-1">
-                          {Object.entries(collabData.environments.find((e: any) => e.id === selectedEnvId).tools || {}).map(([k, v]: [any, any]) => (
-                            <div key={k} className="flex justify-between py-1 border-b border-[var(--hb-border)] text-[10px]">
-                              <span className="text-[var(--hb-muted)] uppercase">{k}</span>
-                              <span className="text-[var(--hb-text)] font-mono">{v}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Env Keys Audit */}
-                      <div className="flex flex-col gap-2">
-                        <div className="text-[9px] text-[var(--hb-indigo-bright)] uppercase font-bold">Environment Keys</div>
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(collabData.environments.find((e: any) => e.id === selectedEnvId).env_keys || {}).map(([k, v]: [any, any]) => (
-                            <Badge key={k} variant="indigo" className="text-[8px] bg-transparent border-[var(--hb-border)] text-[var(--hb-muted)]">
-                              {k}
-                            </Badge>
-                          ))}
-                          {Object.keys(collabData.environments.find((e: any) => e.id === selectedEnvId).env_keys || {}).length === 0 && (
-                            <div className="text-[10px] text-[var(--hb-muted)] italic">No .env keys detected</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-
-                {/* History Timeline */}
-                <div className="mt-4">
-                  <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-4">
-                    Version Evolution Timeline
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {collabData?.history?.map((entry: any) => (
-                      <div key={entry.id} className="flex gap-3 relative pl-4 border-l border-[var(--hb-border)]">
-                        <div className="absolute left-[-4px] top-1.5 w-2 h-2 rounded-full bg-[var(--hb-indigo)]" />
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-semibold text-[var(--hb-text)]">{entry.message}</span>
-                            <span className="text-[9px] text-[var(--hb-dim)]">{new Date(entry.created_at).toLocaleString()}</span>
-                          </div>
-                          <div className="flex gap-2 mt-1">
-                            {entry.changes?.added?.length > 0 && <span className="text-[9px] text-green-400">+{entry.changes.added.length} added</span>}
-                            {entry.changes?.updated?.length > 0 && <span className="text-[9px] text-yellow-400">~{entry.changes.updated.length} updated</span>}
-                            {entry.changes?.removed?.length > 0 && <span className="text-[9px] text-red-400">-{entry.changes.removed.length} removed</span>}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {(!collabData?.history || collabData.history.length === 0) && (
-                      <div className="text-[var(--hb-muted)] text-[11px] italic">No version history recorded yet.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-[720px] flex flex-col h-full overflow-y-auto">
+          
+          {/* CLI Status Bar */}
+          <div className="h-[40px] flex-shrink-0 bg-[var(--surface-2)] border-b border-[var(--border)] flex items-center justify-between px-6">
+            <div className="font-display text-[12px] text-[var(--text-code)]">
+              $ hackbridge status --node={team.team_code} --track={team.selected_track?.toUpperCase() || "GEN"}
+              <span className="cli-cursor text-[var(--signal-live)] inline-block w-[6px] h-[14px] bg-[var(--signal-live)] align-middle ml-1"></span>
+            </div>
+            <div className="font-ui text-[11px] text-[var(--signal-live)] border border-[var(--signal-live)] rounded-[3px] px-2.5 py-1 uppercase tracking-tight">
+              {team.selected_track || "GENERAL"}
+            </div>
+            <div className="font-ui text-[11px] text-[var(--text-secondary)]">
+              Node Sync Nominal · Latency 14ms
             </div>
           </div>
-        )}
 
-        {/* Full Width Footer - Notification Feed */}
-        <section>
-          <NotificationFeed 
-            notifications={notifications.map(n => ({
-              id: n.id,
-              type: n.type.replace('_', ' ').toUpperCase(),
-              message: n.message,
-              meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-            }))} 
-          />
-        </section>
+          <div className="p-[32px_40px] flex flex-col flex-1">
+            {activeTab === "overview" ? (
+              <>
+                {/* Page Header */}
+                <div className="mb-[32px] border-b border-[var(--border)] pb-6">
+                  <div className="font-ui text-[10px] text-[var(--text-muted)] tracking-[0.18em] uppercase mb-1">
+                    PARTICIPANT · DASHBOARD
+                  </div>
+                  <h1 className="font-display text-[48px] font-bold text-[var(--text-primary)] leading-none mb-2 tracking-tight uppercase">
+                    {team.name}
+                  </h1>
+                  <div className="font-body text-[13px] text-[var(--text-secondary)]">
+                    Operational Node · {team.team_members?.length || 0} Operators Active · Sector: {event?.name || "Initializing..."}
+                  </div>
+                </div>
 
-      </main>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px] mb-[24px]">
+                  
+                  {/* Left Column (Info & Timeline) - 40% */}
+                  <div className="lg:col-span-5 flex flex-col gap-[24px]">
+                    
+                    {/* Team Roster */}
+                    <div className="flex flex-col gap-2">
+                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                          Node Operator Roster
+                       </div>
+                       <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-3">
+                          {team.team_members?.map((member: any) => (
+                            <div key={member.user_id} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0">
+                              <div className="w-8 h-8 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[11px] font-bold text-[var(--signal-info)]">
+                                {member.users?.name?.charAt(0) || "U"}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-ui text-[13px] text-[var(--text-primary)]">{member.users?.name || "Anonymous"}</span>
+                                <span className="font-body text-[10px] text-[var(--text-muted)] uppercase">{member.users?.email}</span>
+                              </div>
+                              {member.user_id === team.leader_id && (
+                                <span className="ml-auto font-ui text-[9px] px-1.5 py-0.5 rounded-[2px] bg-[rgba(58,158,191,0.1)] text-[var(--signal-info)] border border-[rgba(58,158,191,0.3)]">LEAD</span>
+                              )}
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+
+                    {/* Event Timeline */}
+                    <div className="flex flex-col gap-2">
+                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                          Mission Timeline
+                       </div>
+                       <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6">
+                          <Timeline items={timelineItems} />
+                       </div>
+                    </div>
+
+                  </div>
+
+                  {/* Right Column (Mentor & Repo) - 60% */}
+                  <div className="lg:col-span-7 flex flex-col gap-[24px]">
+                    
+                    {/* Mentor Panel */}
+                    <div className="flex flex-col gap-2">
+                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                          Assigned Mentor Specialist
+                       </div>
+                       {mentor ? (
+                        <MentorCard
+                          teamId={team.id}
+                          name={mentor.name}
+                          initials={mentor.name?.split(" ").map((n: string) => n[0]).join("") || "?"}
+                          matchPct={team.mentor_match_score || 0}
+                          tags={mentor.mentor_profiles?.expertise_tags || []}
+                        />
+                      ) : (
+                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-10 text-center">
+                          <span className="font-body text-[12px] text-[var(--text-muted)] italic">Awaiting specialist assignment... Scanning mentor pool.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GitHub Repository */}
+                    <div className="flex flex-col gap-2">
+                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                          Data Ingestion (GitHub)
+                       </div>
+                       <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-5 flex flex-col gap-4">
+                          <div className="flex gap-3">
+                            <Input
+                              placeholder="https://github.com/username/repo"
+                              value={repoUrl}
+                              onChange={(e) => setRepoUrl(e.target.value)}
+                              className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-body text-[13px]"
+                            />
+                            <Button variant="secondary" onClick={handleAnalyse} disabled={loading} className="h-11 px-6">
+                              {loading ? "SYNC..." : "ANALYSE"}
+                            </Button>
+                          </div>
+
+                          {(analyzed || (team?.repo_fingerprint && (team.repo_fingerprint.primary_language || team.repo_fingerprint.languages?.length > 0))) && (
+                            <div className="p-4 bg-[rgba(58,158,191,0.06)] border border-[rgba(58,158,191,0.2)] rounded-[4px] font-body text-[12px] text-[var(--text-primary)] leading-relaxed">
+                               <span className="text-[var(--signal-info)] mr-2 font-bold">DETECTED:</span>
+                               {team?.repo_fingerprint?.primary_language || team?.repo_fingerprint?.languages?.[0]} architecture 
+                               {(team?.repo_fingerprint?.tech_stack?.length > 0 || team?.repo_fingerprint?.frameworks?.length > 0) ? 
+                                 ` with ${(team.repo_fingerprint.tech_stack || team.repo_fingerprint.frameworks)?.join(", ")}` : ""}. 
+                               {team?.mentor_match_score ? ` Optimization match: ${team.mentor_match_score}%` : ""}
+                            </div>
+                          )}
+                       </div>
+                    </div>
+
+                    {/* CLI Integration */}
+                    <div className="flex flex-col gap-2">
+                       <div className="flex justify-between items-center mb-1">
+                          <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase">
+                            CLI_INTEGRATION_CHANNEL
+                          </div>
+                          <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(99,115,210,0.1)] text-[var(--signal-info)] border border-[rgba(99,115,210,0.3)] rounded-[2px]">UNIQUE_TOKEN</span>
+                       </div>
+                       <CLIBlock
+                        prompt={`hackbridge init ${cliToken || "YOUR_PERSONAL_TOKEN"}`}
+                        successMessage={cliLinkedAt ? "Personal CLI linked. Your activity will now be attributed to you." : undefined}
+                      />
+                      <p className="font-body text-[9px] text-[var(--text-muted)] mt-1 italic text-center uppercase tracking-tighter">
+                        This cryptographic token is node-exclusive. Transmission prohibited.
+                      </p>
+                    </div>
+
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {/* Team Sync Header */}
+                <div className="mb-[12px] border-b border-[var(--border)] pb-6">
+                  <div className="font-ui text-[10px] text-[var(--text-muted)] tracking-[0.18em] uppercase mb-1">
+                    OPERATIONS · COLLABORATION
+                  </div>
+                  <h1 className="font-display text-[48px] font-bold text-[var(--text-primary)] leading-none mb-2 tracking-tight uppercase">
+                    TEAM_SYNC
+                  </h1>
+                  <div className="font-body text-[13px] text-[var(--text-secondary)]">
+                    Cross-Node Environment Auditing · Real-time Dependency Synchronization
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Connected Nodes */}
+                  <div className="lg:col-span-1 flex flex-col gap-4">
+                    <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                      Connected Cluster Nodes ({collabData?.environments?.length || 0})
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {collabData?.environments?.map((env: any) => {
+                        const isActive = (Date.now() - new Date(env.last_active).getTime()) < 10 * 60 * 1000;
+                        return (
+                          <div 
+                            key={env.id} 
+                            className={`p-4 cursor-pointer transition-all border rounded-[4px] ${selectedEnvId === env.id ? "bg-[rgba(0,255,194,0.04)] border-[var(--signal-live)]" : "bg-[var(--surface-1)] border-[var(--border)] hover:border-[var(--border-hot)]"}`}
+                            onClick={() => setSelectedEnvId(env.id)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${isActive ? "bg-[var(--signal-live)] shadow-[0_0_8px_rgba(0,255,194,0.6)]" : "bg-[var(--text-muted)]"}`} />
+                                <span className="font-ui text-[13px] font-bold text-[var(--text-primary)]">{env.users?.name}</span>
+                              </div>
+                              <span className={`font-ui text-[9px] px-1.5 py-0.5 rounded-[2px] border ${isActive ? "bg-[rgba(0,255,194,0.1)] text-[var(--signal-live)] border-[rgba(0,255,194,0.3)]" : "bg-[rgba(46,74,90,0.1)] text-[var(--text-muted)] border-[var(--border)]"}`}>
+                                {isActive ? "ONLINE" : "OFFLINE"}
+                              </span>
+                            </div>
+                            <div className="mt-2 font-mono text-[10px] text-[var(--text-muted)] uppercase tracking-tight">
+                              Last sync: {new Date(env.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="bg-[var(--surface-2)] border border-[var(--border-hot)] rounded-[4px] p-4 mt-2">
+                      <h3 className="font-ui text-[10px] text-[var(--text-secondary)] mb-2 uppercase tracking-widest">Global Sync Command</h3>
+                      <div className="font-mono text-[11px] text-[var(--signal-live)] bg-[var(--void)] p-2 rounded border border-[var(--border)]">
+                        $ hackbridge collab sync
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Environment Audit */}
+                  <div className="lg:col-span-2 flex flex-col gap-4">
+                    <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                      Cluster Integrity Audit vs Official Master
+                    </div>
+                    <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] overflow-hidden">
+                      <table className="w-full text-left font-mono text-[11px]">
+                        <thead className="bg-[var(--surface-2)] text-[var(--text-muted)] uppercase tracking-tighter border-b border-[var(--border)]">
+                          <tr>
+                            <th className="px-4 py-3 font-medium">Node Operator</th>
+                            <th className="px-4 py-3 font-medium">Runtime Stack</th>
+                            <th className="px-4 py-3 font-medium text-right">Sync Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border)]">
+                          {collabData?.environments?.map((env: any) => {
+                            const officialDeps = collabData?.official_state?.dependencies || {};
+                            let isDrifting = false;
+                            for (const [name, reqVer] of Object.entries(officialDeps)) {
+                              if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) {
+                                isDrifting = true;
+                                break;
+                              }
+                            }
+                            
+                            return (
+                              <tr key={env.id} className="hover:bg-[var(--surface-2)] transition-colors group">
+                                <td className="px-4 py-3 font-bold text-[var(--text-primary)]">{env.users?.name}</td>
+                                <td className="px-4 py-3 text-[var(--text-secondary)]">
+                                  {env.tools?.["node"] ? `Node ${env.tools["node"]}` : 
+                                   env.tools?.["python"] ? `Py ${env.tools["python"]}` : 
+                                   env.tools?.["go"] ? `Go ${env.tools["go"]}` : 
+                                   env.tools?.["rustc"] ? `Rust ${env.tools["rustc"]}` : "Unknown"}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {isDrifting ? (
+                                    <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(255,45,85,0.1)] text-[var(--signal-alert)] border border-[rgba(255,45,85,0.3)] rounded-[2px]">DRIFT</span>
+                                  ) : (
+                                    <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(0,255,194,0.1)] text-[var(--signal-live)] border border-[rgba(0,255,194,0.3)] rounded-[2px]">SYNCED</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* History Timeline */}
+                    <div className="mt-4">
+                      <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-4">
+                        Cluster Evolution Timeline
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        {collabData?.history?.map((entry: any) => (
+                          <div key={entry.id} className="flex gap-4 relative pl-5 border-l border-[var(--border)] py-1 group">
+                            <div className="absolute left-[-4.5px] top-3 w-2 h-2 rounded-full bg-[var(--border-hot)] group-hover:bg-[var(--signal-live)] transition-colors" />
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-3">
+                                <span className="font-ui text-[13px] font-bold text-[var(--text-primary)]">{entry.message}</span>
+                                <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">{new Date(entry.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+          </div>
+
+          {/* Bottom Status Bar */}
+          <div className="h-[32px] mt-auto flex-shrink-0 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center">
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-live)] mr-2">●</span> NODE_LINK_ESTABLISHED
+            </div>
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-info)] mr-2">●</span> CLI_FEED_NOMINAL
+            </div>
+            <div className="flex-1 flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-clean)] mr-2">●</span> SECURITY_VERIFIED
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

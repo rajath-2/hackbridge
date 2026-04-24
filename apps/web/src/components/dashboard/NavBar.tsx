@@ -30,25 +30,33 @@ export function NavBar({ eventCode, eventDropdown, role }: NavBarProps) {
   }
 
   return (
-    <div className="bg-[var(--hb-surface)] border-b border-[var(--hb-border)] px-4 py-0 h-12 flex items-center justify-between sticky top-0 z-50 w-full">
-      <div className="flex items-center gap-6">
-        <span className="text-[13px] font-bold tracking-[-0.03em] text-[var(--hb-text)]">
-          Hack<span className="text-[var(--hb-indigo-bright)]">Bridge</span>
+    <div className="bg-[var(--surface-1)] border-b border-[var(--border)] px-6 h-[64px] flex items-center justify-between relative z-20 w-full shrink-0">
+      <div className="flex items-center gap-10">
+        <span className="font-display text-[18px] font-bold tracking-tight text-[var(--text-primary)]">
+          HACK<span className="text-[var(--signal-live)]">BRIDGE</span>
         </span>
-        <div className="flex items-center gap-2">
-          {eventDropdown ? eventDropdown : (eventCode && <Badge variant="indigo">{eventCode}</Badge>)}
-          <Badge variant={roleBadgeVariants[role]}>{role.charAt(0).toUpperCase() + role.slice(1)}</Badge>
-          <LiveDot />
-          <span className="text-[11px] text-[var(--hb-green)]">Live</span>
+        <div className="flex items-center gap-4">
+          {eventDropdown ? eventDropdown : (eventCode && (
+            <div className="font-ui text-[11px] text-[var(--signal-info)] border border-[rgba(58,158,191,0.3)] bg-[rgba(58,158,191,0.05)] px-2 py-0.5 rounded-[3px] uppercase tracking-widest font-bold">
+              {eventCode}
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] dot-live"></div>
+            <span className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.12em] font-bold">LIVE</span>
+          </div>
+          <div className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-widest border-l border-[var(--border)] pl-4">
+            SECTOR: {role.toUpperCase()}
+          </div>
         </div>
       </div>
       <Button 
         variant="ghost" 
         size="sm" 
         onClick={handleSignOut}
-        className="text-[11px] text-[var(--hb-muted)] hover:text-[var(--hb-red)]"
+        className="font-ui text-[10px] text-[var(--text-muted)] hover:text-[var(--signal-alert)] uppercase tracking-widest border-none bg-transparent"
       >
-        Sign Out
+        TERMINATE_SESSION
       </Button>
     </div>
   )
