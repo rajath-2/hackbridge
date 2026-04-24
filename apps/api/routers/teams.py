@@ -182,6 +182,14 @@ async def get_mentor_teams(user=Depends(get_current_user)):
 async def get_teams_by_event(event_id: str, user=Depends(get_current_user)):
     if user["role"] not in ["organizer", "judge"]:
         raise HTTPException(status_code=403, detail="Unauthorized")
+    
     sb = get_supabase()
+    
+    # Check if the organizer owns this event
+    if user["role"] == "organizer":
+        event_resp = sb.table("events").select("created_by").eq("id", event_id).single().execute()
+        if not event_resp.data or event_resp.data["created_by"] != user["id"]:
+            raise HTTPException(status_code=403, detail="You do not have access to this event's teams")
+            
     res = sb.table("teams").select("*").eq("event_id", event_id).execute()
     return res.data

@@ -12,6 +12,17 @@ async def submit_score(score: ScoreSubmit, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Unauthorized role")
     
     sb = get_supabase()
+    # Check access
+    if user["role"] == "organizer":
+        event_resp = sb.table("events").select("created_by").eq("id", score.event_id).single().execute()
+        if not event_resp.data or event_resp.data["created_by"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        # Judge check
+        part_resp = sb.table("event_participants").select("*").eq("event_id", score.event_id).eq("user_id", user["id"]).execute()
+        if not part_resp.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     res = sb.table("scores").upsert({
         "judge_id": user["id"],
         "team_id": score.team_id,
@@ -27,7 +38,20 @@ async def submit_score(score: ScoreSubmit, user=Depends(get_current_user)):
 async def get_ai_suggested_score(team_id: str, round: int = Query(...), user=Depends(get_current_user)):
     sb = get_supabase()
     # Fetch team data and event criteria
-    team = sb.table("teams").select("*, events(judging_rounds)").eq("id", team_id).single().execute()
+    team = sb.table("teams").select("*, events(*)").eq("id", team_id).single().execute()
+    if not team.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    event_id = team.data["event_id"]
+    # Check access
+    if user["role"] == "organizer":
+        if team.data["events"]["created_by"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user["role"] == "judge":
+         part_resp = sb.table("event_participants").select("*").eq("event_id", event_id).eq("user_id", user["id"]).execute()
+         if not part_resp.data:
+             raise HTTPException(status_code=403, detail="Access denied")
+
     rounds = team.data["events"]["judging_rounds"]
     current_round = next((r for r in rounds if r["round"] == round), None)
     
