@@ -10,12 +10,13 @@
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.users (id, email, role, name)
+    INSERT INTO public.users (id, email, role, name, cli_token)
     VALUES (
         NEW.id,
         NEW.email,
         (NEW.raw_user_meta_data->>'role')::user_role,
-        COALESCE(NEW.raw_user_meta_data->>'name', '')
+        COALESCE(NEW.raw_user_meta_data->>'name', ''),
+        'HB-' || upper(substr(md5(random()::text), 0, 10))
     );
     RETURN NEW;
 END;

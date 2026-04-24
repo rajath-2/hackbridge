@@ -39,6 +39,8 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     role user_role NOT NULL,
     name TEXT NOT NULL,
+    cli_token TEXT UNIQUE,
+    cli_linked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

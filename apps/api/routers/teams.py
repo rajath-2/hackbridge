@@ -75,11 +75,26 @@ async def update_repo(team_id: str, payload: RepoUpdate, user=Depends(get_curren
 
 @router.post("/{team_id}/scan")
 async def ingest_scan(team_id: str, payload: LocalScanPayload):
-    """CLI Scan Ingest - Auth via team_code validation."""
+    """CLI Scan Ingest - Auth via cli_token (preferred) or team_code."""
     sb = get_supabase()
-    team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
-    if not team_resp.data or team_resp.data["team_code"] != payload.team_code:
-        raise HTTPException(status_code=401, detail="Invalid team credentials")
+    
+    if payload.cli_token:
+        # Validate via personal token
+        user_resp = sb.table("users").select("id").eq("cli_token", payload.cli_token).single().execute()
+        if not user_resp.data:
+            raise HTTPException(status_code=401, detail="Invalid personal CLI token")
+        # Check if user is in the team
+        membership = sb.table("team_members").select("team_id").eq("team_id", team_id).eq("user_id", user_resp.data["id"]).execute()
+        if not membership.data:
+             raise HTTPException(status_code=403, detail="User not authorized for this team")
+        
+        # Mark as linked
+        sb.table("users").update({"cli_linked_at": "now()"}).eq("id", user_resp.data["id"]).execute()
+    else:
+        # Fallback to team_code validation
+        team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
+        if not team_resp.data or team_resp.data["team_code"] != payload.team_code:
+            raise HTTPException(status_code=401, detail="Invalid team credentials")
         
     sb.table("teams").update({
         "local_scan_snapshot": payload.model_dump()
