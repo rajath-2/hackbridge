@@ -1,3 +1,20 @@
+import sys
+from unittest.mock import MagicMock
+
+# Monkeypatch for systems with restricted DLL loading (e.g. matplotlib blocked by policy)
+try:
+    import matplotlib
+    import matplotlib.pyplot
+except (ImportError, Exception):
+    sys.modules["matplotlib"] = MagicMock()
+    sys.modules["matplotlib.pyplot"] = MagicMock()
+
+# Ensure pkg_resources is available (for copydetect)
+try:
+    import pkg_resources
+except ImportError:
+    sys.modules["pkg_resources"] = MagicMock()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings

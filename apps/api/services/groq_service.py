@@ -132,3 +132,24 @@ async def analyse_resume(resume_text: str) -> Dict[str, Any]:
     user = f"Resume text: {resume_text}"
     raw = await _chat(system, user)
     return _parse_json(raw)
+
+async def audit_code_originality(file_name: str, code_content: str, selected_track: str) -> Dict[str, Any]:
+    """v1.5: Tier 5 AI Originality Audit."""
+    system = (
+        "You are an expert technical auditor and plagiarism detective. "
+        f"The user is participating in a hackathon on the track: '{selected_track}'. "
+        "Analyze the provided code snippet. Determine if it appears to be: "
+        "1. Original work created during a hackathon. "
+        "2. Common boilerplate or 'Hello World' code for the framework. "
+        "3. Code from a well-known public tutorial, GitHub repository, or Stack Overflow answer. "
+        "Return ONLY JSON: { "
+        "\"originality_score\": number (0-100, where 100 is highly original), "
+        "\"is_common_boilerplate\": boolean, "
+        "\"detected_source\": string (optional, name of tutorial/repo if suspected), "
+        "\"rationale\": string "
+        "}"
+    )
+    # Truncate code if too long to fit in context
+    user = f"FILE: {file_name}\nCONTENT:\n{code_content[:6000]}"
+    raw = await _chat(system, user)
+    return _parse_json(raw)

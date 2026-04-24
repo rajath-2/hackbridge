@@ -1,4 +1,8 @@
 import httpx
+import zipfile
+import io
+import os
+import shutil
 from core.config import settings
 from typing import List, Dict, Tuple, Optional, Any
 
@@ -68,3 +72,43 @@ async def get_commit_diff(repo_url: str, sha: str) -> Dict[str, Any]:
             "stats": data["stats"], # {total, additions, deletions}
             "files": [f["filename"] for f in data["files"]]
         }
+
+async def get_file_content(repo_url: str, file_path: str) -> str:
+    """Fetch raw file content from GitHub."""
+    owner, repo = _parse_repo_url(repo_url)
+    async with httpx.AsyncClient() as client:
+        # Get raw content
+        url = f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/{file_path}"
+        resp = await client.get(url, headers=_headers(), timeout=10)
+        if resp.status_code == 200:
+            return resp.text
+        return ""
+
+async def download_repo_archive(repo_url: str, dest_dir: str):
+    """Download repo as zip and extract to dest_dir."""
+    owner, repo = _parse_repo_url(repo_url)
+    
+    # Create clean dest_dir
+    if os.path.exists(dest_dir):
+        shutil.rmtree(dest_dir)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    async with httpx.AsyncClient() as client:
+        # Use zipball endpoint
+        resp = await client.get(
+            f"{BASE}/repos/{owner}/{repo}/zipball", 
+            headers=_headers(), 
+            follow_redirects=True,
+            timeout=30
+        )
+        resp.raise_for_status()
+        
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            # zipball contains a top-level dir (owner-repo-hash)
+            # We want to extract contents directly to dest_dir
+            for member in z.infolist():
+                # Remove the first component of the path
+                parts = member.filename.split('/', 1)
+                if len(parts) > 1 and parts[1]:
+                    member.filename = parts[1]
+                    z.extract(member, dest_dir)
