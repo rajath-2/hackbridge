@@ -1,0 +1,37 @@
+# General
+node_modules/
+dist/
+.DS_Store
+
+# Context & Documentation (Requested by User)
+context/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Next.js
+.next/
+out/
+build/
+
+# HackBridge CLI state
+.hackbridge/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo

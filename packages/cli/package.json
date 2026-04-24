@@ -1,0 +1,25 @@
+{
+  "name": "hackbridge-cli",
+  "version": "1.0.0",
+  "description": "HackBridge Event Intelligence CLI",
+  "bin": {
+    "hackbridge": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "commander": "^12.0.0",
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/fs-extra": "^11.0.4",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}
