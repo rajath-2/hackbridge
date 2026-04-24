@@ -42,6 +42,7 @@ export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState<"plagiarism" | "track_drift">("plagiarism");
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<any[]>([]);
+  const [mentors, setMentors] = useState<any[]>([]);
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [allEvents, setAllEvents] = useState<any[]>([]);
   const [event, setEvent] = useState<any>(null);
@@ -68,17 +69,80 @@ export default function OrganizerDashboard() {
     }
     setEvent(activeEvent);
     setIsCreatingNewEvent(false);
+
+    const supabase = createClient()
+
+    // Fetch flags — direct Supabase
     try {
-      const flagsData = await api.get(`/integrity/flags/event/${activeEvent.id}`)
-      setFlags(flagsData)
-
-      const suggestionsData = await api.get(`/mentor-match/suggestions/event/${activeEvent.id}`)
-      setSuggestions(suggestionsData)
-
-      const teamsData = await api.get(`/teams/event/${activeEvent.id}`)
-      setTeams(teamsData)
+      const { data: flagsData } = await supabase
+        .from("integrity_flags")
+        .select("*, teams(name)")
+        .eq("event_id", activeEvent.id)
+      setFlags(flagsData || [])
     } catch (error) {
-      console.error("Failed to load event data:", error)
+      setFlags([])
+    }
+
+    // Fetch suggestions — direct Supabase
+    try {
+      const { data: suggestionsData } = await supabase
+        .from("match_suggestions")
+        .select("*, teams(name), current_mentor:current_mentor_id(name), suggested_mentor:suggested_mentor_id(name)")
+        .eq("event_id", activeEvent.id)
+        .eq("status", "pending")
+      setSuggestions(suggestionsData || [])
+    } catch (error) {
+      setSuggestions([])
+    }
+
+    // Fetch teams — direct Supabase to bypass ownership check
+    try {
+      const { data: teamsData } = await supabase
+        .from("teams")
+        .select("*")
+        .eq("event_id", activeEvent.id)
+      setTeams(teamsData || [])
+    } catch (error) {
+      console.error("Failed to load teams:", error)
+      setTeams([])
+    }
+
+    // Fetch mentors who joined this event
+    try {
+      const { data: participants } = await supabase
+        .from("event_participants")
+        .select("user_id")
+        .eq("event_id", activeEvent.id)
+      const pIds = (participants || []).map((p: any) => p.user_id)
+
+      if (pIds.length > 0) {
+        const { data: mentorUsers } = await supabase
+          .from("users")
+          .select("id, name, email, role")
+          .eq("role", "mentor")
+          .in("id", pIds)
+
+        const { data: profiles } = await supabase
+          .from("mentor_profiles")
+          .select("user_id, expertise_tags")
+          .in("user_id", pIds)
+
+        const profileMap: Record<string, string[]> = {}
+        ;(profiles || []).forEach((p: any) => { profileMap[p.user_id] = p.expertise_tags || [] })
+
+        const merged = (mentorUsers || []).map((u: any) => ({
+          user_id: u.id,
+          name: u.name,
+          email: u.email,
+          expertise_tags: profileMap[u.id] || []
+        }))
+        setMentors(merged)
+      } else {
+        setMentors([])
+      }
+    } catch (err) {
+      console.error("Failed to fetch mentors:", err)
+      setMentors([])
     }
   }
 
@@ -367,6 +431,57 @@ export default function OrganizerDashboard() {
             className="h-12 text-[14px]"
           />
           <Button variant="primary" onClick={handleBroadcast} className="h-12 px-8 text-[14px]">Send</Button>
+        </div>
+
+        {/* Mentor Assignment */}
+        <div className="mb-8">
+          <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-3 font-semibold">
+            Team → Mentor Assignment
+          </div>
+          {teams.length === 0 ? (
+            <Card variant="base" className="text-center py-6 text-[13px] text-[var(--hb-muted)] italic">
+              No teams registered yet.
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {teams.map((t: any) => (
+                <Card key={t.id} variant="base" className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold text-[var(--hb-text)] truncate">{t.name}</div>
+                    <div className="text-[11px] text-[var(--hb-muted)]">{t.selected_track || "No track"} · {t.team_code}</div>
+                  </div>
+                  <Select
+                    className="w-[200px] text-[12px] h-9"
+                    value={t.mentor_id || ""}
+                    onChange={async (e) => {
+                      const mentorId = e.target.value || null
+                      const supabase = createClient()
+                      const { error } = await supabase
+                        .from("teams")
+                        .update({ mentor_id: mentorId })
+                        .eq("id", t.id)
+                      if (error) {
+                        console.error("Failed to assign mentor:", error)
+                        return
+                      }
+                      // Update local state
+                      setTeams(prev => prev.map(team => 
+                        team.id === t.id ? { ...team, mentor_id: mentorId } : team
+                      ))
+                    }}
+                  >
+                    <option value="">No mentor</option>
+                    {mentors.map((m: any) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name || m.email}
+                        {m.expertise_tags?.length ? ` (${m.expertise_tags[0]})` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
