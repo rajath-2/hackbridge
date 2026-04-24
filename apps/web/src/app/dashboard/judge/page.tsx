@@ -111,132 +111,226 @@ export default function JudgeDashboard() {
     </Select>
   );
 
-  if (loading) return (
-    <div className="min-h-screen dashboard-root flex items-center justify-center">
-      <span className="text-[14px] text-[var(--hb-muted)] animate-hb-pulse">Loading Judge Dashboard...</span>
-    </div>
-  )
+  const tickerContent = [
+    { type: "SCORE", id: "0x1", team: selectedTeam?.name || "SYS", msg: submitting ? "SUBMITTING_PACKET..." : "AWAITING_INPUT" },
+    { type: "AI_NODE", id: "GROQ", team: "LLAMA3", msg: aiAnalysis ? "ANALYSIS_COMPLETE" : "SCANNING_REPOS..." },
+    { type: "EVENT", id: event?.event_code || "N/A", team: event?.name || "VOID", msg: "JUDGING_PROTOCOL_ACTIVE" },
+  ];
 
   return (
-    <div className="min-h-screen dashboard-root">
-      <NavBar eventDropdown={allEvents.length > 0 ? eventDropdown : undefined} eventCode={event?.event_code} role="judge" />
-
-      <main className="max-w-[1200px] mx-auto px-6 py-8">
-
-        {/* Round Indicator */}
-        <div className="flex items-center justify-between bg-[var(--hb-surface2)] border border-[var(--hb-border)] rounded-[8px] p-3 px-4 mb-6">
-          <div className="flex items-center gap-3">
-            <Badge variant="cyan">Round 1</Badge>
-            <span className="text-[13px] font-medium text-[var(--hb-text)]">{event?.name || "No event loaded"}</span>
-          </div>
-          <div className="text-[12px] font-mono text-[var(--hb-cyan)]">
-            {teams.length} teams · Live Scoring
-          </div>
+    <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
+      {/* Live Ticker Bar */}
+      <div className="h-[32px] bg-[rgba(255,184,0,0.08)] border-b border-[rgba(255,184,0,0.2)] overflow-hidden flex items-center w-full">
+        <div className="ticker-track whitespace-nowrap flex items-center">
+          {[...tickerContent, ...tickerContent, ...tickerContent].map((item, i) => (
+            <span key={i} className="font-ui text-[10px] text-[var(--signal-ping)] uppercase tracking-[0.1em] mx-4">
+              <span className="mr-2">{item.type === 'SCORE' ? '●' : (item.type === 'AI_NODE' ? '⚑' : '◎')}</span>
+              {item.type} {item.id} · {item.team} · {item.msg}
+              <span className="ml-8 opacity-30">·····</span>
+            </span>
+          ))}
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <NavBar eventDropdown={allEvents.length > 0 ? eventDropdown : undefined} eventCode={event?.event_code} role="judge" />
+      
+      <div className="flex flex-1 overflow-hidden h-[calc(100vh-96px)]">
+        {/* Sidebar (240px) */}
+        <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] hidden lg:flex flex-col sticky top-0 h-full overflow-y-auto">
+          <div className="py-5 px-6 font-ui text-[9px] text-[var(--text-muted)] tracking-[0.2em] uppercase">Judging Station</div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-primary)] border-l-4 border-[var(--signal-ping)] bg-[rgba(255,184,0,0.04)] font-ui text-[12px] h-[40px] cursor-pointer transition-all">
+            Scoring Matrix
+          </div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Team Roster
+          </div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Historical Scores
+          </div>
+          
+          <div className="mt-8 py-2 px-6 font-ui text-[9px] text-[var(--text-muted)] tracking-[0.2em] uppercase">Verification</div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Credentials
+          </div>
 
-          {/* Team Queue - 30% */}
-          <div className="flex flex-col gap-2">
-            <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
-              Team Queue
+          <div className="mt-8 mb-4">
+            <NotificationFeed
+              notifications={(liveNotifications || []).map(n => ({
+                id: n.id,
+                type: n.type.replace('_', ' ').toUpperCase(),
+                message: n.message,
+                meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
+              }))}
+            />
+          </div>
+
+          <div className="mt-auto p-6">
+             <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
+                <div className="font-ui text-[9px] text-[var(--text-muted)] uppercase tracking-widest">Station ID</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--signal-ping)] animate-pulse" />
+                  <span className="font-ui text-[11px] text-[var(--text-primary)]">JDG-ALPHA-01</span>
+                </div>
+             </div>
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-[720px] flex flex-col h-full overflow-y-auto">
+          
+          {/* CLI Status Bar */}
+          <div className="h-[40px] flex-shrink-0 bg-[var(--surface-2)] border-b border-[var(--border)] flex items-center justify-between px-6">
+            <div className="font-display text-[12px] text-[var(--text-code)]">
+              $ hackbridge judge --event={event?.event_code || "VOID"} --round=1
+              <span className="cli-cursor text-[var(--signal-ping)] inline-block w-[6px] h-[14px] bg-[var(--signal-ping)] align-middle ml-1"></span>
             </div>
-            <div className="flex flex-col gap-1.5">
-              {teams.length > 0 ? teams.map(team => (
-                <div
-                  key={team.id}
-                  onClick={() => setSelectedTeam(team)}
-                  className={`px-3 py-2 border rounded-[6px] cursor-pointer flex justify-between items-center ${selectedTeam?.id === team.id
-                      ? "bg-[rgba(79,98,216,0.1)] border-[var(--hb-indigo-glow)]"
-                      : "bg-[var(--hb-surface2)] border-[var(--hb-border)] hover:border-[var(--hb-border2)]"
-                    }`}
-                >
-                  <span className={`text-[12px] font-medium ${selectedTeam?.id === team.id ? "text-[var(--hb-text)]" : "text-[var(--hb-muted)]"}`}>
-                    {team.name}
-                  </span>
-                  {selectedTeam?.id === team.id && <Badge variant="indigo">Active</Badge>}
-                </div>
-              )) : (
-                <div className="text-[11px] text-[var(--hb-muted)] italic p-4 text-center">
-                  No teams found for this event.
-                </div>
-              )}
+            <div className="font-ui text-[11px] text-[var(--signal-ping)] border border-[var(--signal-ping)] rounded-[3px] px-2.5 py-1 uppercase tracking-tight">
+              LIVE_SCORING
+            </div>
+            <div className="font-ui text-[11px] text-[var(--text-secondary)]">
+              Station Encrypted · Round 1 Protocol
             </div>
           </div>
 
-          {/* Scoring Panel - 70% */}
-          <div className="lg:col-span-2 flex flex-col gap-2">
-            <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
-              Scoring Panel - {selectedTeam?.name || "Select a team"}
+          <div className="p-[32px_40px] flex flex-col flex-1">
+            {/* Page Header */}
+            <div className="mb-[32px] border-b border-[var(--border)] pb-6">
+              <div className="font-ui text-[10px] text-[var(--text-muted)] tracking-[0.18em] uppercase mb-1">
+                EVALUATOR · DASHBOARD
+              </div>
+              <h1 className="font-display text-[48px] font-bold text-[var(--text-primary)] leading-none mb-2 tracking-tight">
+                JUDGING STATION
+              </h1>
+              <div className="font-body text-[13px] text-[var(--text-secondary)]">
+                {event?.name || "Initializing..."} · {teams.length} Nodes in Queue · Round 1 active
+              </div>
             </div>
 
-            {selectedTeam ? (
-              <Card variant="base" className="flex flex-col gap-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-[16px] font-semibold text-[var(--hb-text)]">AI Evaluation</h2>
-                    <p className="text-[11px] text-[var(--hb-muted)]">Based on repo fingerprint and commit history</p>
-                  </div>
-                  <Badge variant="indigo">Groq · llama3-70b</Badge>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px] mb-[24px]">
+              
+              {/* Team Queue - 30% */}
+              <div className="lg:col-span-4 flex flex-col gap-2">
+                <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                  Node Queue
                 </div>
-
-                <div>
-                  {aiAnalysis?.scores ? (
-                    Object.entries(aiAnalysis.scores).map(([crit, val]: [string, any]) => (
-                      <ScoreBar key={crit} criterion={crit} score={val} />
-                    ))
-                  ) : (
-                    <>
-                      <ScoreBar criterion="Code Quality" score={0} />
-                      <ScoreBar criterion="Complexity" score={0} />
-                      <ScoreBar criterion="Completion" score={0} />
-                    </>
+                <div className="flex flex-col gap-2">
+                  {teams.length > 0 ? teams.map(team => (
+                    <div
+                      key={team.id}
+                      onClick={() => setSelectedTeam(team)}
+                      className={`p-4 border rounded-[4px] cursor-pointer flex justify-between items-center transition-all ${selectedTeam?.id === team.id
+                          ? "bg-[rgba(255,184,0,0.06)] border-[var(--signal-ping)] shadow-[0_0_15px_rgba(255,184,0,0.1)]"
+                          : "bg-[var(--surface-1)] border-[var(--border)] hover:border-[var(--border-hot)]"
+                        }`}
+                    >
+                      <div className="flex flex-col">
+                        <span className={`font-ui text-[14px] font-bold ${selectedTeam?.id === team.id ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
+                          {team.name}
+                        </span>
+                        <span className="font-body text-[10px] text-[var(--text-muted)] uppercase">{team.team_code}</span>
+                      </div>
+                      {selectedTeam?.id === team.id && (
+                        <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[var(--signal-ping)] text-[var(--void)] font-bold rounded-[2px]">ACTIVE</span>
+                      )}
+                    </div>
+                  )) : (
+                    <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-8 text-center">
+                      <span className="font-body text-[12px] text-[var(--text-muted)] italic">No nodes detected in this sector.</span>
+                    </div>
                   )}
                 </div>
+              </div>
 
-                <Card variant="ai">
-                  {aiAnalysis?.evaluation || "Waiting for AI analysis... Select a team to begin."}
-                </Card>
-
-                <div className="pt-4 border-t border-[var(--hb-border)]">
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    onClick={handleSubmitScore}
-                    disabled={submitting}
-                  >
-                    {submitting ? "Submitting..." : "Submit Scores"}
-                  </Button>
+              {/* Scoring Panel - 70% */}
+              <div className="lg:col-span-8 flex flex-col gap-2">
+                <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                  Evaluation Terminal - {selectedTeam?.name || "AWAITING_SELECTION"}
                 </div>
-              </Card>
-            ) : (
-              <Card variant="base" className="flex items-center justify-center py-20 text-[var(--hb-muted)] text-[12px] italic">
-                Select a team from the queue to start scoring
-              </Card>
-            )}
+
+                {selectedTeam ? (
+                  <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6 flex flex-col gap-8">
+                    <div className="flex justify-between items-start border-b border-[var(--border)] pb-6">
+                      <div>
+                        <h2 className="font-display text-[20px] font-bold text-[var(--text-primary)]">AI_SYNERGY_ANALYSIS</h2>
+                        <p className="font-body text-[12px] text-[var(--text-muted)] mt-1">Llama 3 cross-referenced commit architecture</p>
+                      </div>
+                      <div className="font-ui text-[10px] text-[var(--signal-info)] border border-[var(--signal-info)] rounded-[3px] px-2 py-1 uppercase font-bold tracking-widest">
+                        GROQ_VALIDATED
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                      {aiAnalysis?.scores ? (
+                        Object.entries(aiAnalysis.scores).map(([crit, val]: [string, any]) => (
+                          <ScoreBar key={crit} criterion={crit} score={val} />
+                        ))
+                      ) : (
+                        <>
+                          <ScoreBar criterion="Code Quality" score={0} />
+                          <ScoreBar criterion="Complexity" score={0} />
+                          <ScoreBar criterion="Completion" score={0} />
+                          <ScoreBar criterion="Innovation" score={0} />
+                        </>
+                      )}
+                    </div>
+
+                    <div className="p-4 bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] font-body text-[13px] text-[var(--text-primary)] leading-relaxed italic relative">
+                       <span className="absolute -top-2 left-4 px-2 bg-[var(--surface-1)] font-ui text-[9px] text-[var(--text-muted)] uppercase tracking-widest">AI_COMMENTARY</span>
+                       &ldquo;{aiAnalysis?.evaluation || "Scanning team repository... Analyzing code complexity and track alignment. Please hold."}&rdquo;
+                    </div>
+
+                    <div className="pt-6 border-t border-[var(--border)] flex flex-col gap-4">
+                      <div className="flex flex-col gap-2">
+                         <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-widest">Evaluator Notes</label>
+                         <textarea className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-3 font-body text-[13px] text-[var(--text-primary)] h-24 focus:border-[var(--signal-ping)] outline-none" placeholder="Enter manual feedback here..."></textarea>
+                      </div>
+                      <Button
+                        variant="primary"
+                        className="w-full h-14 font-bold text-[14px] tracking-[0.1em]"
+                        onClick={handleSubmitScore}
+                        disabled={submitting}
+                      >
+                        {submitting ? "UPLOADING_SCORES..." : "EXECUTE_SUBMISSION"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] flex items-center justify-center py-32">
+                    <span className="font-body text-[13px] text-[var(--text-muted)] italic uppercase tracking-widest animate-pulse">Select a target node to begin evaluation protocol</span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Resume Upload Section */}
+            <div className="mb-[64px] max-w-[500px]">
+               <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-3">
+                  Evaluator Credentials
+               </div>
+               <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6">
+                  <ResumeUpload role="judge" />
+               </div>
+            </div>
+
+
           </div>
 
-        </div>
-
-        {/* Resume Upload */}
-        <div className="mb-8 max-w-[480px]">
-          <ResumeUpload role="judge" />
-        </div>
-
-        {/* Notification Feed */}
-        <section>
-          <NotificationFeed
-            notifications={(liveNotifications || []).map(n => ({
-              id: n.id,
-              type: n.type.replace('_', ' ').toUpperCase(),
-              message: n.message,
-              meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-            }))}
-          />
-        </section>
-
-      </main>
+          {/* Bottom Status Bar */}
+          <div className="h-[32px] mt-auto flex-shrink-0 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center">
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-ping)] mr-2">●</span> SCORING_LINK_UP
+            </div>
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-info)] mr-2">●</span> AI_SYNC_NOMINAL
+            </div>
+            <div className="flex-1 flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-clean)] mr-2">●</span> STATION_SECURE
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

@@ -176,96 +176,86 @@ export default function MentorDashboard() {
   // ═══════════════════════════════════════════════
   if (!hasJoinedEvent) {
     return (
-      <div className="min-h-screen dashboard-root">
+      <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
         <NavBar role="mentor" />
-        <main className="max-w-[640px] mx-auto px-6 py-16">
-          <div className="text-center mb-10">
-            <h1 className="text-[26px] font-bold text-[var(--hb-text)] mb-2">
-              Welcome, Mentor
-            </h1>
-            <p className="text-[15px] text-[var(--hb-muted)]">
-              Enter the event code shared by the organizer to join the hackathon.
-            </p>
-          </div>
-
-          {/* Join Event Card */}
-          <Card variant="elevated" className="p-8 mb-8">
-            <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-4 font-semibold">
-              Join Hackathon Event
+        <main className="flex-1 flex flex-col items-center justify-center p-6 bg-[rgba(255,45,85,0.02)]">
+          <div className="w-full max-w-[800px] bg-[var(--surface-1)] border border-[var(--border-hot)] rounded-[4px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <div className="bg-[var(--surface-2)] border-b border-[var(--border-hot)] px-6 py-4 flex flex-col">
+              <span className="font-ui text-[10px] text-[var(--signal-alert)] uppercase tracking-[0.2em]">Specialist Verification</span>
+              <h2 className="font-display text-[24px] font-bold text-[var(--text-primary)]">AUTHENTICATION_OVERRIDE</h2>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="e.g. HACK26"
-                  value={eventCode}
-                  onChange={(e) => setEventCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && handleJoinEvent()}
-                  className="text-[15px] font-mono tracking-wider h-12"
-                />
-              </div>
+            <div className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                <div className="md:col-span-7 flex flex-col gap-6">
+                  <div className="font-ui text-[11px] text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border)] pb-2">
+                    01. EVENT_DEPLOYMENT_CODE
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <Input
+                      placeholder="e.g. HACK26"
+                      value={eventCode}
+                      onChange={(e) => setEventCode(e.target.value.toUpperCase())}
+                      className="h-12 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-mono tracking-widest text-[18px]"
+                    />
+                    
+                    <div className="flex flex-col gap-2">
+                       <label className="font-ui text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">Expertise Domain</label>
+                       <Input
+                          list="domain-options"
+                          value={selectedDomain}
+                          onChange={(e) => setSelectedDomain(e.target.value)}
+                          placeholder="Select specialization..."
+                          className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]"
+                        />
+                        <datalist id="domain-options">
+                          <option value="Web3 / Blockchain" />
+                          <option value="AI / Machine Learning" />
+                          <option value="Full Stack Development" />
+                          <option value="Mobile Development" />
+                          <option value="DevOps / Cloud" />
+                          <option value="UI/UX Design" />
+                          <option value="Data Science" />
+                          <option value="Cybersecurity" />
+                          <option value="IoT / Hardware" />
+                          <option value="Social Impact" />
+                          <option value="General / Multi-domain" />
+                        </datalist>
+                    </div>
 
-              {/* Domain / Expertise Selector */}
-              <div>
-                <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1.5 font-semibold">
-                  Your Domain / Expertise
+                    <Button
+                      variant="primary"
+                      onClick={handleJoinEvent}
+                      disabled={joining || !eventCode.trim() || !selectedDomain}
+                      className="h-14 font-bold text-[14px] tracking-[0.1em] mt-2"
+                    >
+                      {joining ? "VERIFYING..." : "INITIALIZE_SESSION"}
+                    </Button>
+
+                    {joinError && (
+                      <div className="p-3 bg-[rgba(255,45,85,0.1)] border border-[rgba(255,45,85,0.3)] text-[var(--signal-alert)] font-ui text-[11px] uppercase tracking-wider">
+                        ERROR: {joinError}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <Input
-                  list="domain-options"
-                  value={selectedDomain}
-                  onChange={(e) => setSelectedDomain(e.target.value)}
-                  placeholder="Select or type your specialization..."
-                  className="h-11 text-[14px]"
-                />
-                <datalist id="domain-options">
-                  <option value="Web3 / Blockchain" />
-                  <option value="AI / Machine Learning" />
-                  <option value="Full Stack Development" />
-                  <option value="Mobile Development" />
-                  <option value="DevOps / Cloud" />
-                  <option value="UI/UX Design" />
-                  <option value="Data Science" />
-                  <option value="Cybersecurity" />
-                  <option value="IoT / Hardware" />
-                  <option value="Social Impact" />
-                  <option value="General / Multi-domain" />
-                </datalist>
-                <p className="text-[11px] text-[var(--hb-muted)] mt-1.5">
-                  Teams in this domain will be prioritized during assignment.
-                </p>
-              </div>
 
-              <Button
-                variant="primary"
-                onClick={handleJoinEvent}
-                disabled={joining || !eventCode.trim() || !selectedDomain}
-                className="h-12 text-[14px] w-full"
-              >
-                {joining ? "Joining..." : "Join Event"}
-              </Button>
+                <div className="md:col-span-5 flex flex-col gap-6 border-l border-[var(--border)] pl-8">
+                   <div className="font-ui text-[11px] text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border)] pb-2">
+                    02. SPECIALIST_CREDENTIALS
+                  </div>
+                  <ResumeUpload
+                    role="mentor"
+                    existingProfile={mentorProfile || undefined}
+                    onUploadComplete={(analysis) => setMentorProfile(analysis)}
+                    className="[&>div:first-child>div:first-child]:hidden"
+                  />
+                  <p className="font-body text-[10px] text-[var(--text-muted)] italic">
+                    Uploading your operational history (resume) allows the Matching Engine to optimize node assignments.
+                  </p>
+                </div>
+              </div>
             </div>
-
-            {joinError && (
-              <div className="mt-3 text-[13px] text-[var(--hb-red)] font-medium animate-notif-in">
-                ✕ {joinError}
-              </div>
-            )}
-          </Card>
-
-          {/* Optional Resume Upload */}
-          <div className="max-w-[520px] mx-auto">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] font-semibold">
-                Resume Upload
-              </div>
-              <Badge variant="indigo" className="text-[9px]">Optional</Badge>
-            </div>
-            <ResumeUpload
-              role="mentor"
-              existingProfile={mentorProfile || undefined}
-              onUploadComplete={(analysis) => setMentorProfile(analysis)}
-              className="[&>div:first-child>div:first-child]:hidden"
-            />
           </div>
         </main>
       </div>
@@ -278,156 +268,220 @@ export default function MentorDashboard() {
   const pings = notifications.filter(n => n.type === "mentor_ping")
   const broadcasts = notifications.filter(n => n.type === "broadcast")
 
+  const tickerContent = [
+    { type: "SYNC", id: "0x1", team: "SYSTEM", msg: "Specialist channel established" },
+    { type: "COMMIT", id: commits[0]?.id?.slice(0, 6) || "----", team: commits[0]?.teams?.name || "SYS", msg: commits[0]?.message || "No activity detected" },
+    { type: "PING", id: "!", team: pings[0]?.teams?.name || "SYS", msg: pings[0]?.message || "Queue clear" },
+  ];
+
   return (
-    <div className="min-h-screen dashboard-root">
+    <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
+      {/* Live Ticker Bar */}
+      <div className="h-[32px] bg-[rgba(255,45,85,0.08)] border-b border-[rgba(255,45,85,0.2)] overflow-hidden flex items-center w-full">
+        <div className="ticker-track whitespace-nowrap flex items-center">
+          {[...tickerContent, ...tickerContent, ...tickerContent].map((item, i) => (
+            <span key={i} className="font-ui text-[10px] text-[var(--signal-alert)] uppercase tracking-[0.1em] mx-4">
+              <span className="mr-2">{item.type === 'SYNC' ? '●' : (item.type === 'COMMIT' ? '⚑' : '◎')}</span>
+              {item.type} {item.id} · {item.team} · {item.msg}
+              <span className="ml-8 opacity-30">·····</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
       <NavBar eventCode={event?.event_code || "HACK26"} role="mentor" />
+      
+      <div className="flex flex-1 overflow-hidden h-[calc(100vh-96px)]">
+        {/* Sidebar (240px) */}
+        <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] hidden lg:flex flex-col sticky top-0 h-full overflow-y-auto">
+          <div className="py-5 px-6 font-ui text-[9px] text-[var(--text-muted)] tracking-[0.2em] uppercase">Specialist Control</div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-primary)] border-l-4 border-[var(--signal-alert)] bg-[rgba(255,45,85,0.04)] font-ui text-[12px] h-[40px] cursor-pointer transition-all">
+            Command Overview
+          </div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Assigned Nodes
+          </div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Activity Feed
+          </div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Incoming Pings
+          </div>
+          
+          <div className="mt-8 py-2 px-6 font-ui text-[9px] text-[var(--text-muted)] tracking-[0.2em] uppercase">Support</div>
+          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
+            Global Logs
+          </div>
 
-      <main className="max-w-[1200px] mx-auto px-6 py-8">
+          <div className="mt-8 mb-4">
+            <NotificationFeed
+              notifications={notifications.map(n => ({
+                id: n.id,
+                type: n.type.replace('_', ' ').toUpperCase(),
+                message: n.message,
+                meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
+              }))}
+            />
+          </div>
 
-        {/* Profile Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-[var(--hb-border)]">
-          <div>
-            <h1 className="text-[24px] font-bold text-[var(--hb-text)] mb-2">
-              {user?.user_metadata?.name || user?.user_metadata?.full_name || "Mentor Dashboard"}
-            </h1>
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--hb-muted)]">{user?.email}</span>
-              {mentorProfile?.expertise_tags && mentorProfile.expertise_tags.length > 0 && (
-                <>
-                  <span className="text-[var(--hb-dim)]">•</span>
-                  <Badge variant="amber" className="text-[10px]">
-                    {mentorProfile.expertise_tags[0]}
-                  </Badge>
-                </>
-              )}
+          <div className="mt-auto p-6">
+             <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
+                <div className="font-ui text-[9px] text-[var(--text-muted)] uppercase tracking-widest">Station ID</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--signal-alert)] animate-pulse" />
+                  <span className="font-ui text-[11px] text-[var(--text-primary)]">MNT-SIGMA-04</span>
+                </div>
+             </div>
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-[720px] flex flex-col h-full overflow-y-auto">
+          
+          {/* CLI Status Bar */}
+          <div className="h-[40px] flex-shrink-0 bg-[var(--surface-2)] border-b border-[var(--border)] flex items-center justify-between px-6">
+            <div className="font-display text-[12px] text-[var(--text-code)]">
+              $ hackbridge status --specialist={user?.email || "UNKNOWN"}
+              <span className="cli-cursor text-[var(--signal-alert)] inline-block w-[6px] h-[14px] bg-[var(--signal-alert)] align-middle ml-1"></span>
+            </div>
+            <div className="font-ui text-[11px] text-[var(--signal-alert)] border border-[var(--signal-alert)] rounded-[3px] px-2.5 py-1 uppercase tracking-tight">
+              {mentorProfile?.expertise_tags?.[0]?.toUpperCase() || "GENERALIST"}
+            </div>
+            <div className="font-ui text-[11px] text-[var(--text-secondary)]">
+              Session Encrypted · Feedback Channel Open
             </div>
           </div>
-        </div>
 
-        {/* Stat Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <StatCard label="Assigned Teams" value={teams.length.toString()} sub="Active" />
-          <StatCard
-            label="Pending Pings"
-            value={<span className="text-[var(--hb-amber)]">{pings.length}</span>}
-            sub="Awaiting response"
-          />
-          <StatCard label="Commits Today" value={commits.length.toString()} sub="Across all teams" />
-        </div>
-
-        {/* Main Grid: Pings + Commits */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-
-          {/* Pings Column */}
-          <div className="flex flex-col gap-3">
-            <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] font-semibold">
-              Incoming Pings
-            </div>
-            {pings.length > 0 ? pings.map(ping => (
-              <div key={ping.id} className="relative">
-                <NotificationCard
-                  type="MENTOR PING"
-                  message={ping.message}
-                  meta={new Date(ping.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  variant="mentor-ping"
-                />
-                <Button variant="ghost" size="sm" className="absolute top-3 right-3 text-[11px] text-[var(--hb-amber)] hover:text-[#F0C060]">
-                  View team →
-                </Button>
+          <div className="p-[32px_40px] flex flex-col flex-1">
+            {/* Page Header */}
+            <div className="mb-[32px] border-b border-[var(--border)] pb-6">
+              <div className="font-ui text-[10px] text-[var(--text-muted)] tracking-[0.18em] uppercase mb-1">
+                SPECIALIST · DASHBOARD
               </div>
-            )) : (
-              <Card variant="base" className="flex items-center justify-center py-10">
-                <span className="text-[13px] text-[var(--hb-dim)] italic">No active pings</span>
-              </Card>
-            )}
-          </div>
-
-          {/* Commit Feed Column */}
-          <div className="lg:col-span-2 flex flex-col gap-3 h-[420px]">
-            <div className="flex justify-between items-center">
-              <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] font-semibold">
-                Live Commit Feed
-              </div>
-              <div className="flex gap-1.5 overflow-x-auto">
-                {teams.length > 0 ? teams.map(t => (
-                  <Badge key={t.id} variant="indigo">{t.name}</Badge>
-                )) : (
-                  <span className="text-[11px] text-[var(--hb-dim)] italic">No teams assigned yet</span>
-                )}
+              <h1 className="font-display text-[48px] font-bold text-[var(--text-primary)] leading-none mb-2 tracking-tight">
+                {user?.user_metadata?.name || user?.user_metadata?.full_name || "COMMAND_CENTER"}
+              </h1>
+              <div className="font-body text-[13px] text-[var(--text-secondary)]">
+                {event?.name || "Initializing..."} · {teams.length} Nodes Assigned · {commits.length} Global Commits Detected
               </div>
             </div>
 
-            <Card variant="base" className="flex-1 overflow-y-auto">
-              <div className="flex flex-col">
-                {commits.length > 0 ? commits.map(commit => (
-                  <CommitFeedItem
-                    key={commit.id}
-                    hash={commit.id?.slice(0, 6) || "------"}
-                    message={commit.message}
-                    aiSummary={commit.ai_summary}
-                  />
-                )) : (
-                  <div className="flex items-center justify-center py-16">
-                    <span className="text-[13px] text-[var(--hb-dim)] italic">No commits detected yet</span>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
+            {/* Stat Grid */}
+            <div className="grid grid-cols-3 gap-[16px] mb-[24px]">
+              <StatCard label="Active Nodes" value={teams.length.toString()} sub="Assigned projects" />
+              <StatCard label="Pending Pings" value={<span className="text-[var(--signal-ping)]">{pings.length}</span>} sub="Awaiting ACK" />
+              <StatCard label="Activity Metric" value={commits.length.toString()} sub="Commits today" />
+            </div>
 
-        </div>
-
-        {/* Assigned Teams */}
-        <div className="mb-10">
-          <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-3 font-semibold">
-            Assigned Teams
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {teams.length > 0 ? teams.map(team => (
-              <Card key={team.id} variant="base">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-[15px] font-semibold text-[var(--hb-text)]">{team.name}</h3>
-                    <div className="flex gap-1.5 mt-1.5">
-                      <Badge variant="indigo" className="text-[10px]">
-                        {team.selected_track || "General"}
-                      </Badge>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px] mb-[24px]">
+              
+              {/* Pings Column - 40% */}
+              <div className="lg:col-span-5 flex flex-col gap-2">
+                <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
+                  Incoming Signal Queue
+                </div>
+                <div className="flex flex-col gap-3">
+                  {pings.length > 0 ? pings.map(ping => (
+                    <div key={ping.id} className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-3 group hover:border-[var(--border-hot)] transition-all">
+                       <div className="flex justify-between items-start">
+                          <span className="font-ui text-[10px] px-1.5 py-0.5 bg-[rgba(255,184,0,0.1)] text-[var(--signal-ping)] border border-[rgba(255,184,0,0.3)] rounded-[2px]">MENTOR_PING</span>
+                          <span className="font-body text-[10px] text-[var(--text-muted)]">{new Date(ping.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       </div>
+                       <div className="font-body text-[13px] text-[var(--text-primary)] italic">
+                          &ldquo;{ping.message}&rdquo;
+                       </div>
+                       <Button variant="ghost" size="sm" className="w-full text-[11px] h-8 border border-[var(--border)]">ESTABLISH_UPLINK</Button>
                     </div>
-                  </div>
-                  <Badge variant="green">Clean</Badge>
+                  )) : (
+                    <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-10 text-center">
+                       <span className="font-body text-[12px] text-[var(--text-muted)] italic">Signal queue clear. Monitoring for incoming pings...</span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-[12px] text-[var(--hb-muted)] mt-4">
-                  Code: <span className="font-mono text-[var(--hb-text)]">{team.team_code}</span>
-                </div>
-              </Card>
-            )) : (
-              <div className="col-span-3">
-                <Card variant="base" className="flex items-center justify-center py-12">
-                  <span className="text-[13px] text-[var(--hb-dim)] italic">
-                    No teams assigned to you yet. The organizer will assign teams once matching completes.
-                  </span>
-                </Card>
               </div>
-            )}
+
+              {/* Commit Feed Column - 60% */}
+              <div className="lg:col-span-7 flex flex-col gap-2">
+                <div className="flex justify-between items-end mb-1">
+                  <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase">
+                    Live Commit Feed
+                  </div>
+                  <div className="flex gap-1.5 overflow-x-auto">
+                    {teams.map(t => (
+                      <span key={t.id} className="font-ui text-[9px] px-1.5 py-0.5 bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)] rounded-[2px]">{t.name}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] h-[400px] overflow-y-auto">
+                  {commits.length > 0 ? commits.map(commit => (
+                    <div key={commit.id} className="p-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
+                       <div className="flex justify-between items-center mb-1">
+                          <span className="font-ui text-[10px] font-bold text-[var(--signal-info)]">NODE_{commit.teams?.name?.toUpperCase() || "UNK"}</span>
+                          <span className="font-display text-[10px] text-[var(--text-code)]">{commit.id?.slice(0, 7)}</span>
+                       </div>
+                       <div className="font-body text-[13px] text-[var(--text-primary)] mb-2">{commit.message}</div>
+                       {commit.ai_summary && (
+                         <div className="p-2 bg-[rgba(99,115,210,0.04)] border-l-2 border-[var(--signal-info)] font-body text-[11px] text-[var(--text-secondary)] italic">
+                            {commit.ai_summary}
+                         </div>
+                       )}
+                    </div>
+                  )) : (
+                    <div className="flex items-center justify-center h-full">
+                       <span className="font-body text-[12px] text-[var(--text-muted)] italic">No commit telemetry detected yet...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Assigned Team Roster */}
+            <div className="mb-[64px]">
+               <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-3">
+                  Assigned Project Nodes
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {teams.length > 0 ? teams.map(team => (
+                    <div key={team.id} className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-5 hover:border-[var(--border-hot)] transition-all flex flex-col gap-4">
+                       <div className="flex justify-between items-start">
+                          <div>
+                             <h3 className="font-ui text-[16px] font-bold text-[var(--text-primary)] leading-tight">{team.name}</h3>
+                             <div className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-tight mt-1">{team.selected_track || "General"}</div>
+                          </div>
+                          <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(0,255,194,0.1)] text-[var(--signal-live)] border border-[rgba(0,255,194,0.3)] rounded-[2px]">STABLE</span>
+                       </div>
+                       <div className="flex items-center justify-between mt-2 pt-4 border-t border-[var(--border)]">
+                          <span className="font-display text-[11px] text-[var(--text-code)]">{team.team_code}</span>
+                          <Button variant="ghost" size="sm" className="text-[10px] h-7">VIEW_NODE</Button>
+                       </div>
+                    </div>
+                  )) : (
+                    <div className="col-span-3 bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-12 text-center">
+                       <span className="font-body text-[13px] text-[var(--text-muted)] italic uppercase tracking-widest animate-pulse">Awaiting node assignment from COMMAND_CENTER...</span>
+                    </div>
+                  )}
+               </div>
+            </div>
+
+
           </div>
-        </div>
 
-
-
-        {/* Notification Feed */}
-        <section className="mb-8">
-          <NotificationFeed
-            notifications={notifications.map(n => ({
-              id: n.id,
-              type: n.type.replace('_', ' ').toUpperCase(),
-              message: n.message,
-              meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-            }))}
-          />
-        </section>
-
-      </main>
+          {/* Bottom Status Bar */}
+          <div className="h-[32px] mt-auto flex-shrink-0 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center">
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-alert)] mr-2">●</span> SPECIALIST_ACTIVE
+            </div>
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-info)] mr-2">●</span> FEED_NOMINAL
+            </div>
+            <div className="flex-1 flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--signal-clean)] mr-2">●</span> ENCRYPTION_ACTIVE
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
