@@ -39,3 +39,12 @@ async def review_suggestion(suggestion_id: str, payload: MatchSuggestionUpdate, 
     }).eq("id", suggestion_id).execute()
     
     return {"status": payload.status}
+
+@router.get("/suggestions/event/{event_id}")
+async def get_suggestions(event_id: str, user=Depends(get_current_user)):
+    if user["role"] != "organizer":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    sb = get_supabase()
+    res = sb.table("match_suggestions").select("*, teams(name), current_mentor:current_mentor_id(name), suggested_mentor:suggested_mentor_id(name)").eq("event_id", event_id).eq("status", "pending").execute()
+    return res.data

@@ -44,3 +44,17 @@ async def get_team_commits(team_id: str, user=Depends(get_current_user)):
     sb = get_supabase()
     res = sb.table("commit_logs").select("*").eq("team_id", team_id).order("timestamp", desc=True).execute()
     return res.data
+
+@router.get("/mentor")
+async def get_mentor_commits(user=Depends(get_current_user)):
+    if user["role"] != "mentor":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    sb = get_supabase()
+    # 1. Find teams
+    teams_res = sb.table("teams").select("id").eq("mentor_id", user["id"]).execute()
+    team_ids = [t["id"] for t in teams_res.data]
+    if not team_ids:
+        return []
+    # 2. Find commits
+    res = sb.table("commit_logs").select("*, teams(name)").in_("team_id", team_ids).order("timestamp", desc=True).limit(20).execute()
+    return res.data

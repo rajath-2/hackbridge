@@ -3,11 +3,16 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 # --- Events ---
+class RubricCriterion(BaseModel):
+    name: str
+    description: Optional[str] = None
+    weight: float = 1.0
+
 class JudgingRound(BaseModel):
     round: int
     start: Optional[str] = None
     end: Optional[str] = None
-    criteria: List[str]
+    criteria: List[RubricCriterion]
 
 class EventCreate(BaseModel):
     event_code: str

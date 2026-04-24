@@ -155,3 +155,33 @@ async def mentor_ping_cli(team_id: str, payload: dict = Body(...)):
     }).execute()
     
     return {"status": "sent"}
+
+@router.get("/me")
+async def get_my_team(user=Depends(get_current_user)):
+    sb = get_supabase()
+    # Find team where user is a member or leader, including members and event info
+    res = sb.table("team_members").select("team_id, teams(*, events(event_code), team_members(*, users(name, email)))").eq("user_id", user["id"]).execute()
+    if not res.data:
+         # Check if they are a leader (though they should be in team_members too)
+         res = sb.table("teams").select("*, events(event_code), team_members(*, users(name, email))").eq("leader_id", user["id"]).execute()
+         if not res.data:
+             return None
+         return res.data[0]
+         
+    return res.data[0]["teams"]
+
+@router.get("/mentor/assigned")
+async def get_mentor_teams(user=Depends(get_current_user)):
+    if user["role"] != "mentor":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    sb = get_supabase()
+    res = sb.table("teams").select("*").eq("mentor_id", user["id"]).execute()
+    return res.data
+
+@router.get("/event/{event_id}")
+async def get_teams_by_event(event_id: str, user=Depends(get_current_user)):
+    if user["role"] not in ["organizer", "judge"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    sb = get_supabase()
+    res = sb.table("teams").select("*").eq("event_id", event_id).execute()
+    return res.data

@@ -24,6 +24,12 @@ async def create_event(event: EventCreate, user=Depends(get_current_user)):
     
     return res.data[0]
 
+@router.get("/all")
+async def get_all_events(user=Depends(get_current_user)):
+    sb = get_supabase()
+    res = sb.table("events").select("*").execute()
+    return res.data
+
 @router.get("/{event_id}")
 async def get_event(event_id: str, user=Depends(get_current_user)):
     sb = get_supabase()

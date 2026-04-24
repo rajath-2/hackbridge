@@ -13,17 +13,25 @@ async def get_current_user(authorization: str = Header(...)):
     sb = get_supabase()
     
     try:
+        # Create a fresh client just for auth to avoid polluting the global service_role client
+        from supabase import create_client
+        from .config import settings
+        auth_client = create_client(settings.supabase_url, settings.supabase_anon_key)
+        
         # Verify JWT with Supabase Auth
-        user_response = sb.auth.get_user(token)
+        user_response = auth_client.auth.get_user(token)
         if not user_response.user:
              raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        
         user_id = user_response.user.id
+        user_metadata = user_response.user.user_metadata
+        email = user_response.user.email
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Token verification failed: {str(e)}")
     
-    # Fetch user data from public.users table
-    user_row = sb.table("users").select("id, role, name, email").eq("id", user_id).single().execute()
-    if not user_row.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
-    
-    return user_row.data
+    return {
+        "id": user_id,
+        "role": user_metadata.get("role", "participant"),
+        "name": user_metadata.get("name", "Unknown"),
+        "email": email
+    }

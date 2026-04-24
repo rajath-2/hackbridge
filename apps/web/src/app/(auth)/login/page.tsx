@@ -28,23 +28,13 @@ export default function LoginPage() {
     }
 
     if (data.user) {
-      // Fetch role from users table to redirect correctly
-      const { data: userData } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-        
       setLoading(false)
+      const role = data.user.user_metadata?.role || 'participant'
 
-      if (userData) {
-        if (userData.role === 'organizer') router.push('/dashboard/organizer')
-        else if (userData.role === 'mentor') router.push('/dashboard/mentor')
-        else router.push('/dashboard/participant')
-      } else {
-        // Fallback
-        router.push('/dashboard/participant')
-      }
+      if (role === 'organizer') router.push('/dashboard/organizer')
+      else if (role === 'mentor') router.push('/dashboard/mentor')
+      else if (role === 'judge') router.push('/dashboard/judge')
+      else router.push('/dashboard/participant')
     }
   }
 
