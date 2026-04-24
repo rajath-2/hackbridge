@@ -210,7 +210,8 @@ export default function OrganizerDashboard() {
     }
   }
 
-  const mentorPingsCount = notifications.filter(n => n.type === 'mentor_ping').length;
+  const safeNotifs = Array.isArray(notifications) ? notifications : [];
+  const mentorPingsCount = safeNotifs.filter(n => n.type === 'mentor_ping').length;
   const activeFlagsCount = flags.filter(f => !f.silenced).length;
 
   if (loading) {
@@ -255,51 +256,57 @@ export default function OrganizerDashboard() {
               )}
             </div>
             
-            <form onSubmit={handleCreateEvent} className="flex flex-col gap-8">
+            <form onSubmit={handleCreateEvent} className="flex flex-col gap-10">
               {/* Basic Info */}
-              <div className="space-y-4">
-                <div className="text-[11px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest border-b border-[var(--hb-border2)] pb-1">
-                  Step 1: Basic Information
+              <div className="space-y-5">
+                <div className="text-[12px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest border-b border-[var(--hb-border2)] pb-2">
+                  Event Details
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5">
                   <div className="col-span-2">
-                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Event Name</label>
-                    <Input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. HackBridge Global 2026" required />
+                    <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">Event Name</label>
+                    <Input value={eventName} onChange={e => setEventName(e.target.value)} placeholder="e.g. HackBridge Global 2026" required className="h-11 text-[14px]" />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Event Code</label>
-                    <Input value={eventCode} onChange={e => setEventCode(e.target.value)} placeholder="HACK26" required />
+                    <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">Event Code</label>
+                    <Input value={eventCode} onChange={e => setEventCode(e.target.value.toUpperCase())} placeholder="HACK26" required className="h-11 text-[14px] font-mono tracking-wider" />
+                    <p className="text-[11px] text-[var(--hb-dim)] mt-1">Share this code with participants, mentors & judges</p>
                   </div>
                   <div>
-                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Tracks (comma separated placeholder - unused in state flow)</label>
-                    <div className="text-[10px] text-[var(--hb-dim)]">See tracks section below</div>
+                    <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">Tracks</label>
+                    <div className="flex flex-wrap gap-1.5 min-h-[44px] items-center bg-[var(--hb-surface3)] border border-[var(--hb-border)] rounded-[8px] px-3 py-2">
+                      {tracks.filter(t => t.trim()).map((t, i) => (
+                        <span key={i} className="text-[11px] bg-[var(--hb-indigo-dim)] text-[var(--hb-indigo-bright)] px-2 py-0.5 rounded-full">{t}</span>
+                      ))}
+                      {tracks.filter(t => t.trim()).length === 0 && <span className="text-[11px] text-[var(--hb-dim)] italic">Add tracks below</span>}
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">Start Date/Time</label>
-                    <Input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+                    <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">Start Date & Time</label>
+                    <Input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} required className="h-11 text-[13px]" />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-[var(--hb-muted)] mb-1 uppercase tracking-wider">End Date/Time</label>
-                    <Input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+                    <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">End Date & Time</label>
+                    <Input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required className="h-11 text-[13px]" />
                   </div>
                 </div>
               </div>
 
               {/* Tracks */}
               <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-[var(--hb-border2)] pb-1">
-                  <div className="text-[11px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest">
-                    Step 2: Tracks
+                <div className="flex justify-between items-center border-b border-[var(--hb-border2)] pb-2">
+                  <div className="text-[12px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest">
+                    Tracks
                   </div>
-                  <Button variant="secondary" size="sm" type="button" onClick={addTrack} className="h-6 py-0 text-[10px]">
+                  <Button variant="secondary" size="sm" type="button" onClick={addTrack} className="h-7 py-0 text-[11px]">
                     <Plus size={12} /> Add Track
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {tracks.map((track, idx) => (
                     <div key={idx} className="flex gap-2">
-                      <Input value={track} onChange={e => updateTrack(idx, e.target.value)} placeholder="Track Name" className="flex-1" />
-                      <Button variant="ghost" size="sm" type="button" onClick={() => removeTrack(idx)} className="text-[var(--hb-red)]">
+                      <Input value={track} onChange={e => updateTrack(idx, e.target.value)} placeholder="e.g. AI/ML, Web3, Healthcare" className="flex-1 h-10 text-[13px]" />
+                      <Button variant="ghost" size="sm" type="button" onClick={() => removeTrack(idx)} className="text-[var(--hb-red)] h-10">
                         <Trash2 size={14} />
                       </Button>
                     </div>
@@ -309,11 +316,11 @@ export default function OrganizerDashboard() {
 
               {/* Judging Rounds */}
               <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-[var(--hb-border2)] pb-1">
-                  <div className="text-[11px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest">
-                    Step 3: Judging Rounds & Rubrics
+                <div className="flex justify-between items-center border-b border-[var(--hb-border2)] pb-2">
+                  <div className="text-[12px] text-[var(--hb-indigo-bright)] uppercase font-bold tracking-widest">
+                    Judging Rounds & Rubrics
                   </div>
-                  <Button variant="secondary" size="sm" type="button" onClick={addRound} className="h-6 py-0 text-[10px]">
+                  <Button variant="secondary" size="sm" type="button" onClick={addRound} className="h-7 py-0 text-[11px]">
                     <Plus size={12} /> Add Round
                   </Button>
                 </div>
@@ -328,8 +335,8 @@ export default function OrganizerDashboard() {
                 ))}
               </div>
               
-              <Button variant="primary" type="submit" disabled={loading} className="mt-4 h-12 text-[15px] shadow-[0_0_20px_rgba(79,98,216,0.3)]">
-                {loading ? "Initializing Hackathon..." : "Initialize Global Event"}
+              <Button variant="primary" type="submit" disabled={loading} className="mt-6 h-14 text-[16px] font-semibold shadow-[0_0_20px_rgba(79,98,216,0.3)]">
+                {loading ? "Creating Event..." : "Create Event"}
               </Button>
             </form>
           </Card>
@@ -351,21 +358,22 @@ export default function OrganizerDashboard() {
         </div>
 
         {/* Broadcast Composer */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-8 flex gap-3">
           <Input 
             placeholder="Type a broadcast message to all participants..." 
             value={broadcastMsg}
             onChange={(e) => setBroadcastMsg(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleBroadcast()}
+            className="h-12 text-[14px]"
           />
-          <Button variant="primary" onClick={handleBroadcast}>Send</Button>
+          <Button variant="primary" onClick={handleBroadcast} className="h-12 px-8 text-[14px]">Send</Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
           {/* Integrity Watchlist (v1.5) */}
-          <div className="lg:col-span-3 flex flex-col gap-2">
+          <div className="lg:col-span-3 flex flex-col gap-3">
             <div className="flex justify-between items-end mb-1">
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em]">
+              <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] font-semibold">
                 Integrity Watchlist
               </div>
               <Button variant="secondary" size="sm" onClick={handleSweep} disabled={loading}>
@@ -417,7 +425,7 @@ export default function OrganizerDashboard() {
 
           {/* Mentor Stats */}
           <div className="lg:col-span-2 flex flex-col gap-2">
-            <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
+            <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1 font-semibold">
               Mentor Pings
             </div>
             <Card variant="base">
@@ -426,7 +434,7 @@ export default function OrganizerDashboard() {
                 <span className="text-[11px] text-[var(--hb-text)] font-semibold">{mentorPingsCount}</span>
               </div>
 
-              {notifications.filter(n => n.type === 'mentor_ping').slice(0, 5).map((ping, i) => {
+              {safeNotifs.filter(n => n.type === 'mentor_ping').slice(0, 5).map((ping, i) => {
                 const team = teams.find(t => t.id === ping.team_id);
                 return (
                   <div key={i} className="flex justify-between items-center py-1">
@@ -445,7 +453,7 @@ export default function OrganizerDashboard() {
         {/* Matching Optimization Panel (v1.5) */}
         <div className="mb-6">
           <div className="flex justify-between items-end mb-2">
-            <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em]">
+            <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] font-semibold">
               Matching Optimization
             </div>
             <Button variant="secondary" size="sm" onClick={handleMatchScan}>
@@ -489,51 +497,52 @@ export default function OrganizerDashboard() {
         </div>
 
         {/* Final Placement */}
-        <div className="mb-6">
-          <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
+        <div className="mb-10">
+          <div className="text-[11px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-3 font-semibold">
             Final Placement
           </div>
-          <Card variant="elevated" className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-[11px] text-[var(--hb-muted)] mb-1">1st Place</label>
-              <Select>
-                <option value="">Select team...</option>
-                {teams.map(t => <option key={`1-${t.id}`} value={t.id}>{t.name}</option>)}
-              </Select>
+          <Card variant="elevated" className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">🥇 1st Place</label>
+                <Select>
+                  <option value="">Select team...</option>
+                  {teams.map(t => <option key={`1-${t.id}`} value={t.id}>{t.name}</option>)}
+                </Select>
+              </div>
+              <div>
+                <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">🥈 2nd Place</label>
+                <Select>
+                  <option value="">Select team...</option>
+                  {teams.map(t => <option key={`2-${t.id}`} value={t.id}>{t.name}</option>)}
+                </Select>
+              </div>
+              <div>
+                <label className="block text-[12px] text-[var(--hb-muted)] mb-1.5 font-medium">🥉 3rd Place</label>
+                <Select>
+                  <option value="">Select team...</option>
+                  {teams.map(t => <option key={`3-${t.id}`} value={t.id}>{t.name}</option>)}
+                </Select>
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="block text-[11px] text-[var(--hb-muted)] mb-1">2nd Place</label>
-              <Select>
-                <option value="">Select team...</option>
-                {teams.map(t => <option key={`2-${t.id}`} value={t.id}>{t.name}</option>)}
-              </Select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-[11px] text-[var(--hb-muted)] mb-1">3rd Place</label>
-              <Select>
-                <option value="">Select team...</option>
-                {teams.map(t => <option key={`3-${t.id}`} value={t.id}>{t.name}</option>)}
-              </Select>
-            </div>
-            <div className="pt-5">
-              <Button variant="primary">Confirm Winners</Button>
-            </div>
+            <Button variant="primary" className="w-full h-12 text-[14px]">Confirm Winners</Button>
           </Card>
         </div>
 
-      </main>
+        {/* Notification Feed — inline */}
+        <section className="mb-8">
+          <NotificationFeed 
+            notifications={safeNotifs.map(n => ({
+              id: n.id,
+              type: n.type.replace('_', ' ').toUpperCase(),
+              message: n.message,
+              meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
+            }))} 
+          />
+        </section>
 
-      <div className="fixed bottom-0 right-0 w-[320px] p-4 hidden lg:block">
-        <NotificationFeed 
-          notifications={notifications.map(n => ({
-            id: n.id,
-            type: n.type.replace('_', ' ').toUpperCase(),
-            message: n.message,
-            meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-          }))} 
-        />
-      </div>
+      </main>
     </div>
   )
 }
