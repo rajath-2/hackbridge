@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { NavBar } from "@/components/dashboard/NavBar"
 import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
