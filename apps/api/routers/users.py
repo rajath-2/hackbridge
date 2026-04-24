@@ -44,3 +44,36 @@ async def upload_resume(file: UploadFile = File(...), user=Depends(get_current_u
 @router.get("/me")
 async def get_me(user=Depends(get_current_user)):
     return user
+
+@router.get("/me/cli-token")
+async def get_my_cli_token(user=Depends(get_current_user)):
+    sb = get_supabase()
+    res = sb.table("users").select("cli_token, cli_linked_at").eq("id", user["id"]).single().execute()
+    return res.data
+
+@router.post("/validate-cli-token/{token}")
+async def validate_cli_token(token: str):
+    """CLI initialization endpoint — validates a personal token and returns team context."""
+    sb = get_supabase()
+    # 1. Find user by token
+    user_res = sb.table("users").select("id, name").eq("cli_token", token).single().execute()
+    if not user_res.data:
+        raise HTTPException(status_code=401, detail="Invalid personal CLI token")
+    
+    user_id = user_res.data["id"]
+    
+    # 2. Find their team
+    team_res = sb.table("team_members").select("team_id, teams(*, events(event_code))").eq("user_id", user_id).execute()
+    if not team_res.data:
+        raise HTTPException(status_code=404, detail="User is not part of any team")
+        
+    team = team_res.data[0]["teams"]
+    
+    return {
+        "user_id": user_id,
+        "user_name": user_res.data["name"],
+        "team_id": team["id"],
+        "team_code": team["team_code"],
+        "event_id": team["event_id"],
+        "event_code": team["events"]["event_code"]
+    }

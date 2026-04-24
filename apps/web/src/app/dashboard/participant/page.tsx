@@ -29,6 +29,8 @@ export default function ParticipantDashboard() {
   const [newTeamName, setNewTeamName] = useState("")
   const [selectedEventId, setSelectedEventId] = useState("")
   const [selectedTrack, setSelectedTrack] = useState("")
+  const [cliToken, setCliToken] = useState("")
+  const [cliLinkedAt, setCliLinkedAt] = useState<string | null>(null)
 
   const notifications = useNotifications(team?.event_id, user?.id, "participant")
 
@@ -42,6 +44,10 @@ export default function ParticipantDashboard() {
         const teamData = await api.get("/teams/me")
         setTeam(teamData)
         setRepoUrl(teamData?.repo_url || "")
+
+        const { cli_token, cli_linked_at } = await api.get("/users/me/cli-token")
+        setCliToken(cli_token)
+        setCliLinkedAt(cli_linked_at)
 
         if (teamData?.mentor_id) {
           const { data: mentorData } = await supabase
@@ -284,13 +290,17 @@ export default function ParticipantDashboard() {
             </section>
 
             <section>
-              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
-                CLI Integration
+              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2 flex justify-between items-center">
+                <span>CLI Integration</span>
+                <Badge variant="indigo" className="text-[9px]">Personal Link</Badge>
               </div>
               <CLIBlock 
-                prompt={`hackbridge init ${team?.team_code || "TEAM_CODE"}`}
-                successMessage="CLI connected and scanning. Post-commit hook installed."
+                prompt={`hackbridge init ${cliToken || "YOUR_PERSONAL_TOKEN"}`}
+                successMessage={cliLinkedAt ? "Personal CLI linked. Your activity will now be attributed to you." : undefined}
               />
+              <p className="text-[9px] text-[var(--hb-muted)] mt-2 italic text-center">
+                This token is unique to you. Do not share it with others.
+              </p>
             </section>
 
           </div>

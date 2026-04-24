@@ -5,27 +5,25 @@ import axios from 'axios';
 import { scanDirectory } from '../scanner/filesystem';
 import { installGitHook } from '../hooks/post-commit';
 
-export async function initAction(teamCode: string, options: any) {
+export async function initAction(cliToken: string, options: any) {
   const apiBase = options.api;
   const configPath = path.join(process.cwd(), '.hackbridge', 'state.json');
   
   console.log(chalk.blue('Connecting to HackBridge...'));
   
   try {
-    // 0. Install Git Hook first (fails early if not a git repo)
+    // 0. Install Git Hook first
     await installGitHook(process.cwd());
     console.log(chalk.green('✓ Git post-commit hook installed.'));
 
-    // 1. Validate team code and fetch event start time
-    // For this implementation, we assume the API has a public endpoint for validation
-    const teamResp = await axios.get(`${apiBase}/teams/validate/${teamCode}`);
-    const { team_id, event_id } = teamResp.data;
+    // 1. Validate personal token and fetch context
+    const validateResp = await axios.post(`${apiBase}/users/validate-cli-token/${cliToken}`);
+    const { team_id, team_code, event_id, event_code, user_name } = validateResp.data;
 
     const eventResp = await axios.get(`${apiBase}/events/${event_id}`);
     const startTime = new Date(eventResp.data.start_time);
-    const eventCode = eventResp.data.event_code;
 
-    console.log(chalk.green('✓ Team verified. Starting initial codebase scan...'));
+    console.log(chalk.green(`✓ Hello ${user_name}! Personal link verified. Initializing team ${team_code}...`));
 
     // 2. Perform initial scan
     const scanResult = await scanDirectory(process.cwd(), startTime);
@@ -34,7 +32,8 @@ export async function initAction(teamCode: string, options: any) {
     // 3. Upload scan to API
     await axios.post(`${apiBase}/teams/${team_id}/scan`, {
       ...scanResult,
-      team_code: teamCode
+      team_code: team_code,
+      cli_token: cliToken
     });
 
     // 4. Save state
@@ -42,8 +41,9 @@ export async function initAction(teamCode: string, options: any) {
     await fs.writeJson(configPath, {
       team_id,
       event_id,
-      team_code: teamCode,
-      event_code: eventCode,
+      team_code: team_code,
+      event_code: event_code,
+      cli_token: cliToken,
       api_base: apiBase,
       initialized_at: new Date().toISOString()
     }, { spaces: 2 });
