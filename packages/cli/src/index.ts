@@ -4,6 +4,12 @@ import chalk from 'chalk';
 import { initAction } from './commands/init';
 import { statusAction } from './commands/status';
 import { pingAction } from './commands/ping';
+import { registerDoctorCommand } from './commands/doctor';
+import { registerDebugCommand } from './commands/debug';
+import { registerAnalyseCommand } from './commands/analyse';
+import { registerGitCommands } from './commands/git';
+import { registerEventCommands } from './commands/event';
+import { registerCollaborationCommands } from './commands/collaboration';
 
 const program = new Command();
 
@@ -11,6 +17,7 @@ program
   .name('hackbridge')
   .description('HackBridge Event Intelligence CLI')
   .version('1.5.0');
+
 program
   .command('init <cli_token>')
   .description('Initialize HackBridge in the current repository')
@@ -23,57 +30,16 @@ program
   .action(statusAction);
 
 program
-  .command('analyse')
-  .description('Run local codebase analysis')
-  .action(() => {
-    console.log(chalk.blue('Analysing codebase...'));
-  });
-
-program
-  .command('changes')
-  .description('Show commit summary history')
-  .action(() => {
-    console.log(chalk.blue('Fetching commit summaries...'));
-  });
-
-program
-  .command('stats')
-  .description('Show commit metrics')
-  .action(() => {
-    console.log(chalk.blue('Calculating stats...'));
-  });
-
-program
-  .command('activity')
-  .description('Show team activity timeline')
-  .action(() => {
-    console.log(chalk.blue('Fetching activity...'));
-  });
-
-program
   .command('ping')
   .description('Request help from your assigned mentor')
   .action(pingAction);
 
-program
-  .command('timeline')
-  .description('Show event judging rounds timeline')
-  .action(() => {
-    console.log(chalk.blue('Fetching event timeline...'));
-  });
-
-program
-  .command('checklist')
-  .description('Check submission readiness')
-  .action(() => {
-    console.log(chalk.blue('Checking readiness...'));
-  });
-
-program
-  .command('submit')
-  .description('Finalize and submit the project')
-  .action(() => {
-    console.log(chalk.blue('Submitting project...'));
-  });
+// Feature-rich command modules
+registerDoctorCommand(program);
+registerDebugCommand(program);
+registerAnalyseCommand(program);
+registerGitCommands(program);
+registerEventCommands(program);
+registerCollaborationCommands(program);
 
 program.parse(process.argv);

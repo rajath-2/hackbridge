@@ -18,7 +18,7 @@ except ImportError:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
-from routers import events, teams, commits, integrity, users, scores, notifications, mentor_match
+from routers import events, teams, commits, integrity, users, scores, notifications, mentor_match, collaboration
 
 app = FastAPI(title="HackBridge API", version="1.5.0")
 
@@ -44,6 +44,7 @@ app.include_router(users.router)
 app.include_router(scores.router)
 app.include_router(notifications.router)
 app.include_router(mentor_match.router)
+app.include_router(collaboration.router)
 
 from fastapi.responses import HTMLResponse
 

@@ -26,7 +26,9 @@ async def _chat(system: str, user: str, heavy: bool = True) -> str:
                 temperature=0.2,
                 max_tokens=2048,
             )
-            return response.choices[0].message.content.strip()
+            raw_content = response.choices[0].message.content.strip()
+            print(f"DEBUG [Groq]: Model: {model} | Response: {raw_content[:200]}...") # Log first 200 chars
+            return raw_content
         except Exception as e:
             if attempt == 2:
                 raise e
@@ -58,7 +60,9 @@ async def fingerprint_repo(file_tree: str, readme: str) -> Dict[str, Any]:
         '{ "languages": [], "frameworks": [], "domain": string, "complexity": "low"|"medium"|"high", "summary": string }'
     )
     user = f"FILE_TREE: {file_tree}\nREADME: {readme}"
+    print(f"DEBUG [Groq]: Analyzing repo with {len(file_tree)} bytes of file tree data.")
     raw = await _chat(system, user)
+    print(f"DEBUG [Groq]: Fingerprint Response: {raw}")
     return _parse_json(raw)
 
 async def summarise_commit(message: str, files_changed: List[str]) -> str:

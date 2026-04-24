@@ -42,6 +42,8 @@ export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState<"plagiarism" | "track_drift">("plagiarism");
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<any[]>([]);
+  const [mentors, setMentors] = useState<any[]>([]);
+  const [judges, setJudges] = useState<any[]>([]);
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [allEvents, setAllEvents] = useState<any[]>([]);
   const [event, setEvent] = useState<any>(null);
@@ -77,6 +79,12 @@ export default function OrganizerDashboard() {
 
       const teamsData = await api.get(`/teams/event/${activeEvent.id}`)
       setTeams(teamsData)
+
+      const mentorsData = await api.get(`/events/${activeEvent.id}/participants?role=mentor`)
+      setMentors(mentorsData)
+
+      const judgesData = await api.get(`/events/${activeEvent.id}/participants?role=judge`)
+      setJudges(judgesData)
     } catch (error) {
       console.error("Failed to load event data:", error)
     }
@@ -415,30 +423,83 @@ export default function OrganizerDashboard() {
             ))}
           </div>
 
-          {/* Mentor Stats */}
-          <div className="lg:col-span-2 flex flex-col gap-2">
-            <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
-              Mentor Pings
-            </div>
-            <Card variant="base">
-              <div className="flex justify-between items-center py-1 border-b border-[var(--hb-border)] mb-2">
-                <span className="text-[11px] text-[var(--hb-text)]">Total requests today</span>
-                <span className="text-[11px] text-[var(--hb-text)] font-semibold">{mentorPingsCount}</span>
+          {/* Mentor Stats & Expertise Pool */}
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
+                Mentor Pings
               </div>
+              <Card variant="base">
+                <div className="flex justify-between items-center py-1 border-b border-[var(--hb-border)] mb-2">
+                  <span className="text-[11px] text-[var(--hb-text)]">Total requests today</span>
+                  <span className="text-[11px] text-[var(--hb-text)] font-semibold">{mentorPingsCount}</span>
+                </div>
 
-              {notifications.filter(n => n.type === 'mentor_ping').slice(0, 5).map((ping, i) => {
-                const team = teams.find(t => t.id === ping.team_id);
-                return (
-                  <div key={i} className="flex justify-between items-center py-1">
-                    <span className="text-[11px] text-[var(--hb-text)]">{team?.name || 'Unknown Team'}</span>
-                    <span className="text-[11px] text-[var(--hb-muted)] truncate max-w-[120px]">{ping.message}</span>
+                {notifications.filter(n => n.type === 'mentor_ping').slice(0, 3).map((ping, i) => {
+                  const team = teams.find(t => t.id === ping.team_id);
+                  return (
+                    <div key={i} className="flex justify-between items-center py-1">
+                      <span className="text-[11px] text-[var(--hb-text)]">{team?.name || 'Unknown Team'}</span>
+                      <span className="text-[11px] text-[var(--hb-muted)] truncate max-w-[120px]">{ping.message}</span>
+                    </div>
+                  );
+                })}
+                {mentorPingsCount === 0 && (
+                  <div className="text-[11px] text-[var(--hb-muted)] text-center py-2">No active pings.</div>
+                )}
+              </Card>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-1">
+                Expertise Pool (Mentors)
+              </div>
+              <Card variant="base" className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                {mentors.map((m, i) => (
+                  <div key={i} className="py-2 border-b border-[var(--hb-border)] last:border-0">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[11px] font-semibold text-[var(--hb-text)]">{m.users?.name}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {m.users?.mentor_profiles?.expertise_tags?.map((tag: string, j: number) => (
+                        <span key={j} className="text-[8px] px-1 py-0.5 bg-[var(--hb-surface3)] text-[var(--hb-muted)] rounded uppercase">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                );
-              })}
-              {mentorPingsCount === 0 && (
-                 <div className="text-[11px] text-[var(--hb-muted)] text-center py-2">No active pings.</div>
-              )}
-            </Card>
+                ))}
+                {mentors.length === 0 && (
+                  <div className="text-[11px] text-[var(--hb-muted)] text-center py-4 italic">No mentors registered.</div>
+                )}
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* Judges & Domain Pool */}
+        <div className="mb-6">
+          <div className="text-[10px] text-[var(--hb-dim)] uppercase tracking-[0.08em] mb-2">
+            Scoring Pool (Judges)
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {judges.map((j, i) => (
+              <Card key={i} variant="elevated" className="p-3">
+                <div className="text-[12px] font-bold text-[var(--hb-text)] mb-1">{j.users?.name}</div>
+                <div className="text-[10px] text-[var(--hb-indigo-bright)] uppercase tracking-tighter mb-2">
+                  {j.users?.judge_profiles?.title || "Lead Judge"}
+                </div>
+                <div className="text-[10px] text-[var(--hb-muted)] bg-[var(--hb-surface2)] p-2 rounded border border-[var(--hb-border)]">
+                  <span className="text-[var(--hb-dim)] uppercase mr-1">Domain:</span>
+                  {j.users?.judge_profiles?.domain || "General"}
+                </div>
+              </Card>
+            ))}
+            {judges.length === 0 && (
+              <div className="col-span-4 text-center text-[11px] text-[var(--hb-muted)] py-4 bg-[var(--hb-surface1)] rounded-[8px] border border-dashed border-[var(--hb-border)]">
+                No judges assigned to this event.
+              </div>
+            )}
           </div>
         </div>
 

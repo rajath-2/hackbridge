@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from typing import List, Optional
 from core.dependencies import get_current_user
 from core.supabase_client import get_supabase
-from models.schemas import TeamCreate, TeamJoin, RepoUpdate, LocalScanPayload
+from models.schemas import TeamCreate, TeamJoin, RepoUpdate, LocalScanPayload, GroqRelayPayload, DebugPingPayload
 from services import github_service, groq_service, matching_service
 from datetime import datetime, timezone
 
@@ -211,3 +211,65 @@ async def get_teams_by_event(event_id: str, user=Depends(get_current_user)):
             
     res = sb.table("teams").select("*").eq("event_id", event_id).execute()
     return res.data
+@router.post("/{team_id}/cli/groq-relay")
+async def groq_relay_cli(team_id: str, payload: GroqRelayPayload):
+    """Proxies CLI Groq requests through backend — keeps GROQ_API_KEY server-side."""
+    sb = get_supabase()
+    
+    # 1. Validate cli_token
+    user_resp = sb.table("users").select("id").eq("cli_token", payload.cli_token).single().execute()
+    if not user_resp.data:
+        raise HTTPException(status_code=401, detail="Invalid CLI token")
+    
+    # 2. Validate team_code matches team_id
+    team_resp = sb.table("teams").select("team_code").eq("id", team_id).single().execute()
+    if not team_resp.data or team_resp.data["team_code"] != payload.team_code:
+        raise HTTPException(status_code=401, detail="Invalid team credentials")
+    
+    # 3. Call Groq
+    try:
+        content = await groq_service._chat(
+            system_prompt=payload.system_prompt,
+            user_prompt=payload.user_prompt,
+            heavy=payload.heavy
+        )
+        return {"content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Groq relay failed: {str(e)}")
+
+@router.post("/{team_id}/cli/debug-ping")
+async def debug_ping_cli(team_id: str, payload: DebugPingPayload):
+    """Sends full debug report to assigned mentor as a notification."""
+    sb = get_supabase()
+    
+    # 1. Validate credentials
+    user_resp = sb.table("users").select("id").eq("cli_token", payload.cli_token).single().execute()
+    if not user_resp.data:
+        raise HTTPException(status_code=401, detail="Invalid CLI token")
+        
+    team_resp = sb.table("teams").select("team_code, event_id, mentor_id").eq("id", team_id).single().execute()
+    if not team_resp.data or team_resp.data["team_code"] != payload.team_code:
+        raise HTTPException(status_code=401, detail="Invalid team credentials")
+        
+    if not team_resp.data["mentor_id"]:
+        raise HTTPException(status_code=400, detail="No mentor assigned yet")
+        
+    # 2. Format rich message
+    message = (
+        f"🚨 DEBUG REPORT FROM {payload.team_code}\n"
+        f"Stack: {payload.stack_identity}\n\n"
+        f"--- AI ANALYSIS ---\n{payload.debug_output}\n\n"
+        f"--- STACK TRACE ---\n{payload.stack_trace[:500]}..."
+    )
+    
+    # 3. Insert notification
+    sb.table("notifications").insert({
+        "event_id": team_resp.data["event_id"],
+        "message": message,
+        "recipient_id": team_resp.data["mentor_id"],
+        "team_id": team_id,
+        "type": "mentor_ping",
+        "metadata": payload.model_dump(mode='json')
+    }).execute()
+    
+    return {"status": "sent"}

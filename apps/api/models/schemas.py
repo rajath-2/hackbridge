@@ -71,4 +71,35 @@ class ScoreSubmit(BaseModel):
     event_id: str
     round: int
     rubric_scores: Dict[str, float]
-    notes: Optional[str] = None
+# --- CLI Relay & Debug ---
+class GroqRelayPayload(BaseModel):
+    cli_token: str
+    team_code: str
+    prompt_type: str          # 'debug' | 'fix' | 'fix_retry' | 'bisect' | 'api_key_blueprint'
+    system_prompt: str        # full system message
+    user_prompt: str          # full user message  
+    heavy: bool = False       # True -> llama-3.3-70b, False -> llama-3.1-8b
+
+class DebugPingPayload(BaseModel):
+    cli_token: str
+    team_code: str
+    stack_trace: str          # cleaned, no source code
+    stack_identity: str       # "Next.js 14 on Node 20"
+    debug_output: str         # the 3-section AI analysis
+    git_diff_summary: str     # diff of errored files only
+    timestamp: datetime
+
+# --- Collaboration & Environment ---
+class EnvironmentSyncPayload(BaseModel):
+    team_id: str
+    team_code: str
+    cli_token: str
+    dependencies: Dict[str, str]
+    tools: Dict[str, str]
+    env_keys: Dict[str, str]
+    message: Optional[str] = None # Optional "sync" message for history
+
+class OfficialStateUpdate(BaseModel):
+    team_id: str
+    dependencies: Dict[str, str]
+    tools: Dict[str, str]
