@@ -246,15 +246,44 @@ CREATE POLICY "notifications_read"
     USING (
         (
             type = 'broadcast'
-            AND EXISTS (
-                SELECT 1 FROM event_participants ep
-                WHERE ep.event_id = notifications.event_id
-                  AND ep.user_id = auth.uid()
+            AND (
+                -- User is explicitly registered as an event participant
+                EXISTS (
+                    SELECT 1 FROM event_participants ep
+                    WHERE ep.event_id = notifications.event_id
+                      AND ep.user_id = auth.uid()
+                )
+                OR
+                -- User is participating via a team in this event
+                EXISTS (
+                    SELECT 1
+                    FROM team_members tm
+                    JOIN teams t ON t.id = tm.team_id
+                    WHERE t.event_id = notifications.event_id
+                      AND tm.user_id = auth.uid()
+                )
+                OR
+                -- Organizer who created the event can read broadcasts too
+                EXISTS (
+                    SELECT 1 FROM events e
+                    WHERE e.id = notifications.event_id
+                      AND e.created_by = auth.uid()
+                      AND get_user_role(auth.uid()) = 'organizer'
+                )
             )
         )
         OR
         (
             type = 'mentor_ping'
+            AND (
+                recipient_id = auth.uid()
+                OR get_user_role(auth.uid()) = 'organizer'
+            )
+        )
+        OR
+        (
+            -- Targeted notifications are readable by recipient (and organizers)
+            type IN ('idle_warning', 'match_suggestion')
             AND (
                 recipient_id = auth.uid()
                 OR get_user_role(auth.uid()) = 'organizer'

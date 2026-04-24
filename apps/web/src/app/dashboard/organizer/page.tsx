@@ -14,6 +14,7 @@ import { Plus, Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
 import { useNotifications } from "@/hooks/useNotifications"
+import { BroadcastToastStack } from "@/components/ui/BroadcastToastStack"
 
 interface Flag {
   id: string | number;
@@ -207,6 +208,9 @@ export default function OrganizerDashboard() {
       setBroadcastMsg("");
     } catch (err) {
       console.error("Failed to broadcast:", err);
+      const message =
+        err instanceof Error ? err.message : "Only organizers can broadcast. Please sign in as an organizer."
+      alert(message)
     }
   }
 
@@ -341,6 +345,7 @@ export default function OrganizerDashboard() {
   return (
     <div className="min-h-screen dashboard-root">
       <NavBar eventDropdown={eventDropdown} role="organizer" />
+      <BroadcastToastStack notifications={notifications} />
       
       <main className="max-w-[1200px] mx-auto px-6 py-8">
         {/* Header Grid */}
@@ -522,18 +527,6 @@ export default function OrganizerDashboard() {
         </div>
 
       </main>
-
-      <div className="fixed bottom-0 right-0 w-[320px] p-4 hidden lg:block">
-        <NotificationFeed 
-          notifications={notifications.map(n => ({
-            id: n.id,
-            type: n.type.replace('_', ' ').toUpperCase(),
-            message: n.message,
-            meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-          }))} 
-        />
-      </div>
     </div>
   )
 }

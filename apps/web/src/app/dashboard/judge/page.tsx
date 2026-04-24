@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select"
 import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
 import { useNotifications } from "@/hooks/useNotifications"
+import { BroadcastToastStack } from "@/components/ui/BroadcastToastStack"
 
 export default function JudgeDashboard() {
   const [allEvents, setAllEvents] = useState<any[]>([])
@@ -112,6 +113,7 @@ export default function JudgeDashboard() {
   return (
     <div className="min-h-screen dashboard-root">
       <NavBar eventDropdown={eventDropdown} role="judge" />
+      <BroadcastToastStack notifications={notifications} />
       
       <main className="max-w-[1200px] mx-auto px-6 py-8">
         

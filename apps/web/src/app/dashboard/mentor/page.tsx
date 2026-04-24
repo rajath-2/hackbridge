@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react"
+"use client"
+import { useState, useEffect} from "react"
 import { NavBar } from "@/components/dashboard/NavBar"
 import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
 import { StatCard } from "@/components/ui/StatCard"
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
 import { useNotifications } from "@/hooks/useNotifications"
+import { BroadcastToastStack } from "@/components/ui/BroadcastToastStack"
 
 export default function MentorDashboard() {
   const [teams, setTeams] = useState<any[]>([])
@@ -57,6 +59,7 @@ export default function MentorDashboard() {
   return (
     <div className="min-h-screen dashboard-root">
       <NavBar eventCode={event?.event_code} role="mentor" />
+      <BroadcastToastStack notifications={notifications} />
       
       <main className="max-w-[1200px] mx-auto px-6 py-8">
         

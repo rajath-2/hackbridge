@@ -14,6 +14,7 @@ import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
 import { useNotifications } from "@/hooks/useNotifications"
 import { Select } from "@/components/ui/select"
+import { BroadcastToastStack } from "@/components/ui/BroadcastToastStack"
 
 export default function ParticipantDashboard() {
   const [team, setTeam] = useState<any>(null)
@@ -186,6 +187,7 @@ export default function ParticipantDashboard() {
   return (
     <div className="min-h-screen dashboard-root">
       <NavBar eventCode={team?.events?.event_code || "HACK26"} role="participant" />
+      <BroadcastToastStack notifications={notifications} />
       
       <main className="max-w-[1200px] mx-auto px-6 py-8">
         
