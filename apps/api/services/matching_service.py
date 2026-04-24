@@ -11,13 +11,11 @@ async def run_match_for_team(team_id: str, trigger_stage: str):
     event_id = team["events"]["id"]
     
     # 2. Get All Available Mentors for this event
-    participants_resp = sb.table("event_participants").select("user_id").eq("event_id", event_id).eq("role", "mentor").execute()
-    participant_user_ids = [p["user_id"] for p in participants_resp.data]
-    
-    if not participant_user_ids:
-        return
-        
-    mentors_resp = sb.table("mentor_profiles").select("*, users(id, name)").eq("is_available", True).in_("user_id", participant_user_ids).execute()
+    mentors_resp = sb.table("mentor_profiles") \
+        .select("*, users(id, name)") \
+        .eq("event_id", event_id) \
+        .eq("is_available", True) \
+        .execute()
     mentors = mentors_resp.data
     
     if not mentors:

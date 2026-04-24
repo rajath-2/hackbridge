@@ -3,8 +3,6 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Badge } from "../ui/badge"
-import { LiveDot } from "../ui/LiveDot"
 import { Button } from "../ui/button"
 
 export interface NavBarProps {
@@ -22,42 +20,50 @@ export function NavBar({ eventCode, eventDropdown, role }: NavBarProps) {
     router.push("/login")
   }
 
-  const roleBadgeVariants = {
-    organizer: "indigo" as const,
-    participant: "green" as const,
-    mentor: "amber" as const,
-    judge: "cyan" as const,
-  }
-
   return (
-    <div className="bg-[var(--surface-1)] border-b border-[var(--border)] px-6 h-[64px] flex items-center justify-between relative z-20 w-full shrink-0">
-      <div className="flex items-center gap-10">
-        <span className="font-display text-[18px] font-bold tracking-tight text-[var(--text-primary)]">
-          HACK<span className="text-[var(--signal-live)]">BRIDGE</span>
-        </span>
-        <div className="flex items-center gap-4">
-          {eventDropdown ? eventDropdown : (eventCode && (
-            <div className="font-ui text-[11px] text-[var(--signal-info)] border border-[rgba(58,158,191,0.3)] bg-[rgba(58,158,191,0.05)] px-2 py-0.5 rounded-[3px] uppercase tracking-widest font-bold">
-              {eventCode}
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] dot-live"></div>
-            <span className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.12em] font-bold">LIVE</span>
+    <nav className="bg-[var(--surface-1)] border-b border-[var(--border)] px-6 h-[64px] flex items-center justify-between relative z-20 w-full shrink-0">
+      <div className="flex items-center gap-10 h-full">
+        <div className="flex items-center gap-1 cursor-pointer" onClick={() => router.push("/dashboard")}>
+          <span className="font-display text-[18px] font-bold tracking-tight text-[var(--text-primary)] uppercase">
+            HACK<span className="text-[var(--signal-live)]">BRIDGE</span>
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-8 h-full">
+          {/* Event Dropdown or Code */}
+          <div className="h-full flex items-center">
+            {eventDropdown ? eventDropdown : (eventCode && (
+              <div className="font-ui text-[11px] text-[var(--signal-live)] border border-[var(--signal-live)]/30 bg-[var(--signal-live)]/5 px-2.5 py-1 rounded-[3px] uppercase tracking-tight font-medium">
+                {eventCode}
+              </div>
+            ))}
           </div>
-          <div className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-widest border-l border-[var(--border)] pl-4">
-            SECTOR: {role.toUpperCase()}
+
+          {/* Live Indicator */}
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] dot-live shadow-[0_0_8px_rgba(0,255,194,0.4)]"></div>
+            <span className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.12em] font-medium">LIVE</span>
+          </div>
+
+          {/* Role Badge */}
+          <div className="h-full flex items-center">
+             <div className="px-3 py-1 border border-[var(--border-hot)] rounded-[4px] font-ui text-[11px] text-[var(--text-primary)] uppercase tracking-wider">
+                SECTOR: {role}
+             </div>
           </div>
         </div>
       </div>
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={handleSignOut}
-        className="font-ui text-[10px] text-[var(--text-muted)] hover:text-[var(--signal-alert)] uppercase tracking-widest border-none bg-transparent"
-      >
-        TERMINATE_SESSION
-      </Button>
-    </div>
+
+      <div className="flex items-center gap-4">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleSignOut}
+          className="font-ui text-[10px] text-[var(--text-muted)] hover:text-[var(--signal-alert)] uppercase tracking-[0.15em] border-none bg-transparent h-auto p-0"
+        >
+          TERMINATE_SESSION
+        </Button>
+      </div>
+    </nav>
   )
-}
+}

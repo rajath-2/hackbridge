@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  /* Legacy tailwind theme mappings if needed */
+  /* Legacy tailwind theme mappings */
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-ui), monospace;
 }
 
 @layer base {
   :root {
-    /* Color System - Base */
-    --void:           #080A0C;
-    --surface-1:      #0D1117;
-    --surface-2:      #131920;
-    --border:         #1E2A35;
-    --border-hot:     #2A3F50;
+    /* 2. Color System - Base */
+    --void:           #080A0C;   /* primary background */
+    --surface-1:      #0D1117;   /* sidebar, cards */
+    --surface-2:      #131920;   /* nested elements, input bg */
+    --border:         #1E2A35;   /* all borders */
+    --border-hot:     #2A3F50;   /* hover/active borders */
 
     /* Typography Colors */
     --text-primary:   #E8EDF2;
@@ -21,25 +21,25 @@
     --text-muted:     #2E4A5A;
     --text-code:      #7FBFCF;
 
-    /* Accent System - Signal Colors */
-    --signal-live:    #00FFC2;   /* teal-green */
-    --signal-warn:    #FF6B35;   /* burnt orange */
-    --signal-alert:   #FF2D55;   /* red */
-    --signal-ping:    #FFB800;   /* amber */
-    --signal-clean:   #2ECC71;   /* green */
-    --signal-info:    #3A9EBF;   /* steel blue */
+    /* Accent System — one color per signal type */
+    --signal-live:    #00FFC2;   /* teal-green — active, streaming, live */
+    --signal-warn:    #FF6B35;   /* burnt orange — integrity flags, review */
+    --signal-alert:   #FF2D55;   /* red — HIGH RISK, critical */
+    --signal-ping:    #FFB800;   /* amber — mentor pings, unacknowledged */
+    --signal-clean:   #2ECC71;   /* green — clean status */
+    --signal-info:    #3A9EBF;   /* steel blue — neutral commits, metadata */
 
     /* Interactive */
     --cta-bg:      #00FFC2;
     --cta-text:    #080A0C;
     --cta-hover:   #00E0AA;
 
-    /* Fonts */
+    /* 3. Typography */
     --font-display: 'IBM Plex Mono', monospace;
     --font-ui:      'DM Mono', monospace;
     --font-body:    'Space Mono', monospace;
 
-    /* Spacing */
+    /* 7. Spacing System */
     --space-1:  4px;
     --space-2:  8px;
     --space-3:  12px;
@@ -50,23 +50,9 @@
     --space-10: 40px;
     --space-12: 48px;
 
-    /* Radius */
+    /* 8. Border Radius */
     --radius-sm:   3px;
     --radius-md:   4px;
-
-    /* Legacy HB Tokens for backward compatibility during transition */
-    --hb-bg: var(--void);
-    --hb-surface: var(--surface-1);
-    --hb-surface2: var(--surface-2);
-    --hb-border: var(--border);
-    --hb-border2: var(--border-hot);
-    --hb-indigo: var(--signal-info);
-    --hb-indigo-bright: var(--signal-live);
-    --hb-red: var(--signal-alert);
-    --hb-amber: var(--signal-ping);
-    --hb-green: var(--signal-clean);
-    --hb-text: var(--text-primary);
-    --hb-muted: var(--text-secondary);
   }
 
   body {
@@ -75,10 +61,17 @@
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     margin: 0;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    margin: 0;
   }
 }
 
 @layer utilities {
+  /* 6. Motion & Animation */
   .ticker-track {
     animation: ticker-scroll 40s linear infinite;
     display: flex;
@@ -96,6 +89,15 @@
   .commit-row-new {
     animation: commit-in 0.3s ease-out;
   }
+
+  /* Typography utilities based on spec */
+  .t-display { font-size: 48px; font-weight: 700; font-family: var(--font-display); line-height: 1; letter-spacing: -0.02em; }
+  .t-stat { font-size: 56px; font-weight: 700; font-family: var(--font-display); line-height: 1; }
+  .t-section { font-size: 10px; font-weight: 500; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-secondary); }
+  .t-label { font-size: 12px; font-weight: 400; font-family: var(--font-ui); color: var(--text-secondary); }
+  .t-body { font-size: 13px; font-weight: 400; font-family: var(--font-body); color: var(--text-primary); }
+  .t-micro { font-size: 10px; font-weight: 400; font-family: var(--font-ui); color: var(--text-muted); }
+  .t-code { font-size: 12px; font-weight: 400; font-family: var(--font-display); color: var(--text-code); }
 }
 
 @keyframes ticker-scroll {
@@ -118,16 +120,3 @@
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes hb-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.45; }
-}
-
-@keyframes notif-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.animate-hb-pulse { animation: hb-pulse 1.6s ease-in-out infinite; }
-.animate-notif-in { animation: notif-in 0.2s ease; }

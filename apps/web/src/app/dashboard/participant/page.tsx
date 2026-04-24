@@ -8,19 +8,18 @@ import { MentorCard } from "@/components/ui/MentorCard"
 import { CLIBlock } from "@/components/ui/CLIBlock"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
 import { useNotifications } from "@/hooks/useNotifications"
 import { Select } from "@/components/ui/select"
+import { StatCard } from "@/components/ui/StatCard"
+import { Grid2X2, RefreshCw, Radio } from "lucide-react"
 
 export default function ParticipantDashboard() {
   const [team, setTeam] = useState<any>(null)
   const [mentor, setMentor] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
   const [repoUrl, setRepoUrl] = useState("")
-  const [analyzed, setAnalyzed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [collabData, setCollabData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<"overview" | "sync">("overview")
@@ -50,7 +49,6 @@ export default function ParticipantDashboard() {
         if (!authUser) { setLoading(false); return }
         setUser(authUser)
 
-        // Find team via team_members → teams join
         const { data: memberRow } = await supabase
           .from("team_members")
           .select("team_id")
@@ -58,7 +56,6 @@ export default function ParticipantDashboard() {
           .maybeSingle()
 
         if (!memberRow) {
-          // Not in a team — load events for onboarding
           const { data: eventsData } = await supabase
             .from("events")
             .select("id, event_code, name, tracks")
@@ -68,7 +65,6 @@ export default function ParticipantDashboard() {
           return
         }
 
-        // Fetch full team data
         const { data: teamData } = await supabase
           .from("teams")
           .select("*, events(event_code, start_time, end_time, name), team_members(user_id, users(name, email))")
@@ -78,14 +74,12 @@ export default function ParticipantDashboard() {
         setTeam(teamData)
         setRepoUrl(teamData?.repo_url || "")
 
-        // CLI token
         try {
           const { cli_token, cli_linked_at } = await api.get("/users/me/cli-token")
           setCliToken(cli_token)
           setCliLinkedAt(cli_linked_at)
         } catch (e) { console.error("CLI token fetch failed:", e) }
 
-        // Fetch mentor if assigned
         if (teamData?.mentor_id) {
           const { data: mentorData } = await supabase
             .from("users")
@@ -98,11 +92,6 @@ export default function ParticipantDashboard() {
         if (teamData) {
           const collab = await api.get(`/collaboration/team/${teamData.id}`)
           setCollabData(collab)
-        }
-
-        if (!teamData) {
-          const eventsData = await api.get("/events/all")
-          setEvents(eventsData)
         }
 
         if (teamData?.event_id) {
@@ -130,7 +119,6 @@ export default function ParticipantDashboard() {
       window.location.reload()
     } catch (err) {
       console.error("Failed to join team:", err)
-      alert("Invalid team code or already in a team.")
     } finally {
       setLoading(false)
     }
@@ -153,7 +141,6 @@ export default function ParticipantDashboard() {
     }
   }
 
-  // Build timeline from real event data
   const buildTimeline = (): TimelineItem[] => {
     if (!event) return [{ status: 'pending' as const, label: 'Loading...', time: '' }]
     const now = new Date()
@@ -183,12 +170,8 @@ export default function ParticipantDashboard() {
     setLoading(true)
     try {
       await api.post(`/teams/${team.id}/repo`, { repo_url: repoUrl })
-      
-      // Re-fetch team data to get the new fingerprint and match score
       const teamData = await api.get("/teams/me")
       setTeam(teamData)
-      
-      setAnalyzed(true)
     } catch (err) {
       console.error("Analysis failed:", err)
     } finally {
@@ -196,9 +179,14 @@ export default function ParticipantDashboard() {
     }
   };
 
+  const handleBroadcast = async () => {
+    // Participant broadcast functionality? Maybe just a ping.
+    alert("Broadcast functionality reserved for Organizers.")
+  }
+
   if (loading) return (
-    <div className="min-h-screen dashboard-root flex items-center justify-center">
-      <span className="text-[14px] text-[var(--hb-muted)] animate-hb-pulse">Loading HackBridge...</span>
+    <div className="min-h-screen bg-[var(--void)] flex items-center justify-center font-ui uppercase tracking-widest text-[var(--text-muted)] animate-pulse">
+      Initialising Participant Node...
     </div>
   )
 
@@ -206,20 +194,19 @@ export default function ParticipantDashboard() {
     return (
       <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
         <NavBar role="participant" />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 bg-[rgba(0,255,194,0.02)]">
+        <main className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-[900px] bg-[var(--surface-1)] border border-[var(--border-hot)] rounded-[4px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <div className="bg-[var(--surface-2)] border-b border-[var(--border-hot)] px-6 py-4 flex flex-col">
-              <span className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.2em]">Deployment Sequence</span>
-              <h2 className="font-display text-[24px] font-bold text-[var(--text-primary)]">NODE_AUTHENTICATION_REQUIRED</h2>
+              <span className="t-section uppercase">Deployment Sequence</span>
+              <h2 className="t-display text-[24px] uppercase text-[var(--text-primary)]">NODE_AUTHENTICATION_REQUIRED</h2>
             </div>
 
             <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-10">
-              {/* Join Team */}
               <div className="flex flex-col">
-                <div className="font-ui text-[11px] text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border)] pb-2 mb-6">
+                <div className="t-section border-b border-[var(--border)] pb-2 mb-6">
                   OPTION_01: JOIN_EXISTING_NODE
                 </div>
-                <p className="font-body text-[13px] text-[var(--text-secondary)] mb-6 flex-1 leading-relaxed">
+                <p className="t-body text-[var(--text-secondary)] mb-6 flex-1">
                   Enter the unique node identifier (team code) to sync with an established squad.
                 </p>
                 <div className="flex flex-col gap-4">
@@ -229,18 +216,17 @@ export default function ParticipantDashboard() {
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-mono tracking-wider"
                   />
-                  <Button variant="primary" onClick={handleJoinTeam} className="h-11 font-bold">INITIATE_SYNC</Button>
+                  <Button onClick={handleJoinTeam} className="h-11 font-bold bg-[var(--signal-live)] text-[var(--void)]">INITIATE_SYNC</Button>
                 </div>
               </div>
 
-              {/* Create Team */}
               <div className="flex flex-col border-l border-[var(--border)] pl-10">
-                <div className="font-ui text-[11px] text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border)] pb-2 mb-6">
+                <div className="t-section border-b border-[var(--border)] pb-2 mb-6">
                   OPTION_02: INITIALIZE_NEW_NODE
                 </div>
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Node Designation</label>
+                    <label className="t-micro uppercase">Node Designation</label>
                     <Input
                       placeholder="Team Name"
                       value={newTeamName}
@@ -249,7 +235,7 @@ export default function ParticipantDashboard() {
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Target Sector</label>
+                    <label className="t-micro uppercase">Target Sector</label>
                     <Select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]">
                       <option value="">Select Event...</option>
                       {events.map(e => (
@@ -258,7 +244,7 @@ export default function ParticipantDashboard() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-ui text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Operational Track</label>
+                    <label className="t-micro uppercase">Operational Track</label>
                     <Select value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)} className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]">
                       <option value="">Select Track...</option>
                       {(() => {
@@ -270,7 +256,7 @@ export default function ParticipantDashboard() {
                       })()}
                     </Select>
                   </div>
-                  <Button variant="secondary" onClick={handleCreateTeam} className="h-11 font-bold">BOOT_NEW_NODE</Button>
+                  <Button onClick={handleCreateTeam} className="h-11 font-bold bg-[var(--signal-live)] text-[var(--void)]">BOOT_NEW_NODE</Button>
                 </div>
               </div>
             </div>
@@ -280,6 +266,14 @@ export default function ParticipantDashboard() {
     )
   }
 
+  const driftCount = collabData?.environments?.filter((env: any) => {
+    const officialDeps = collabData?.official_state?.dependencies || {};
+    for (const [name, reqVer] of Object.entries(officialDeps)) {
+      if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) return true;
+    }
+    return false;
+  }).length || 0;
+
   const tickerContent = [
     { type: "DEPLOY", id: team.team_code, team: team.name, msg: "Node fully operational in " + (team.selected_track || "General") },
     { type: "SIGNAL", id: "0x1", team: "ADMIN", msg: "Hackathon protocol active. Monitoring commits." },
@@ -287,14 +281,18 @@ export default function ParticipantDashboard() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
-      {/* Live Ticker Bar */}
-      <div className="h-[32px] bg-[rgba(0,255,194,0.08)] border-b border-[rgba(0,255,194,0.2)] overflow-hidden flex items-center w-full">
+    <div className="min-h-screen flex flex-col bg-[var(--void)] font-body selection:bg-[var(--signal-live)] selection:text-[var(--void)]">
+      {/* 5.1 Live Ticker Bar */}
+      <div className="h-[32px] bg-[var(--signal-live)]/8 border-b border-[var(--signal-live)]/20 overflow-hidden flex items-center w-full sticky top-0 z-[100]">
         <div className="ticker-track whitespace-nowrap flex items-center">
           {[...tickerContent, ...tickerContent, ...tickerContent].map((item, i) => (
-            <span key={i} className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.1em] mx-4">
-              <span className="mr-2">{item.type === 'DEPLOY' ? '●' : (item.type === 'SIGNAL' ? '⚑' : '◎')}</span>
-              {item.type} {item.id} · {item.team} · {item.msg}
+            <span key={i} className="font-ui text-[10px] text-[var(--signal-live)] uppercase tracking-[0.1em] mx-4 flex items-center gap-2">
+              <span>{item.type === 'DEPLOY' ? '●' : (item.type === 'SIGNAL' ? '⚑' : '◎')}</span>
+              <span className="font-bold">{item.type} {item.id}</span>
+              <span className="opacity-60">·</span>
+              <span>{item.team}</span>
+              <span className="opacity-60">·</span>
+              <span>{item.msg}</span>
               <span className="ml-8 opacity-30">·····</span>
             </span>
           ))}
@@ -303,78 +301,60 @@ export default function ParticipantDashboard() {
 
       <NavBar eventCode={event?.event_code || team?.events?.event_code || ""} role="participant" />
       
-      <div className="flex flex-1 overflow-hidden h-[calc(100vh-96px)]">
-        <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] overflow-y-auto flex flex-col">
-          {/* Sidebar (240px) */}
-          <div 
+      <div className="flex flex-1 overflow-hidden">
+        {/* 5.4 Sidebar */}
+        <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] flex flex-col sticky top-[32px] h-[calc(100vh-32px)]">
+          <div className="py-5 px-6 t-section">Navigation</div>
+          <button 
             onClick={() => setActiveTab("overview")}
-            className={`px-6 py-2 flex items-center h-[40px] cursor-pointer transition-all border-l-4 ${activeTab === 'overview' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[rgba(0,255,194,0.04)]" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)]"} font-ui text-[12px]`}
+            className={`px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'overview' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
           >
+            <Grid2X2 size={14} />
             Overview
-          </div>
-          <div 
+          </button>
+          <button 
             onClick={() => setActiveTab("sync")}
-            className={`px-6 py-2 flex items-center h-[40px] cursor-pointer transition-all border-l-4 ${activeTab === 'sync' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[rgba(0,255,194,0.04)]" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)]"} font-ui text-[12px]`}
+            className={`px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'sync' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
           >
+            <RefreshCw size={14} />
             Team Sync
-            {(() => {
-              const driftCount = collabData?.environments?.filter((env: any) => {
-                const officialDeps = collabData?.official_state?.dependencies || {};
-                for (const [name, reqVer] of Object.entries(officialDeps)) {
-                  if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) return true;
-                }
-                return false;
-              }).length || 0;
-              return driftCount > 0 ? (
-                <span className="ml-auto font-ui text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[rgba(255,45,85,0.15)] text-[var(--signal-alert)] border border-[rgba(255,45,85,0.4)]">{driftCount}</span>
-              ) : null;
-            })()}
-          </div>
-          
-          <div className="mt-8 py-2 px-6 font-ui text-[9px] text-[var(--text-muted)] tracking-[0.2em] uppercase">Operations</div>
-          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
-            Repository
-          </div>
-          <div className="px-6 py-2 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.03)] font-ui text-[12px] h-[40px] cursor-pointer border-l-4 border-transparent transition-all">
-            Logs
-          </div>
+            {driftCount > 0 && (
+              <span className="ml-auto font-ui text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[var(--signal-alert)]/15 text-[var(--signal-alert)] border border-[var(--signal-alert)]/40">{driftCount}</span>
+            )}
+          </button>
 
-          <div className="mt-8 mb-4">
-            <NotificationFeed
-              notifications={notifications.map(n => ({
-                id: n.id,
-                type: n.type.replace('_', ' ').toUpperCase(),
-                message: n.message,
-                meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-              }))}
-            />
-          </div>
-
-          <div className="mt-auto p-6">
+          <div className="mt-auto p-6 border-t border-[var(--border)] bg-[var(--surface-1)]">
              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
-                <div className="font-ui text-[9px] text-[var(--text-muted)] uppercase tracking-widest">Station ID</div>
+                <div className="t-micro uppercase tracking-widest">Station ID</div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] animate-pulse" />
-                  <span className="font-ui text-[11px] text-[var(--text-primary)]">{team.team_code}</span>
+                  <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] dot-live shadow-[0_0_8px_rgba(0,255,194,0.4)]" />
+                  <span className="font-ui text-[11px] text-[var(--text-primary)] font-bold">{team.team_code}</span>
                 </div>
              </div>
+             <button 
+                onClick={handleBroadcast}
+                className="w-full mt-4 bg-[var(--signal-live)] text-[var(--void)] font-display text-[12px] font-bold uppercase tracking-[0.08em] h-[36px] rounded-[4px] hover:shadow-[0_0_15px_rgba(0,255,194,0.4)] transition-all flex items-center justify-center gap-2"
+             >
+               <Radio size={14} />
+               PING_ADMIN
+             </button>
           </div>
         </aside>
 
         {/* Main Content Area */}
         <main className="flex-1 min-w-[720px] flex flex-col h-full overflow-y-auto">
           
-          {/* CLI Status Bar */}
+          {/* 5.3 CLI Status Bar */}
           <div className="h-[40px] flex-shrink-0 bg-[var(--surface-2)] border-b border-[var(--border)] flex items-center justify-between px-6">
-            <div className="font-display text-[12px] text-[var(--text-code)]">
-              $ hackbridge status --node={team.team_code} --track={team.selected_track?.toUpperCase() || "GEN"}
-              <span className="cli-cursor text-[var(--signal-live)] inline-block w-[6px] h-[14px] bg-[var(--signal-live)] align-middle ml-1"></span>
+            <div className="t-code flex items-center">
+              <span className="mr-2">$</span>
+              <span>hackbridge status --node={team.team_code?.toLowerCase()} --track={team.selected_track?.toLowerCase()}</span>
+              <span className="cli-cursor ml-1 text-[var(--signal-live)]">▋</span>
             </div>
             <div className="font-ui text-[11px] text-[var(--signal-live)] border border-[var(--signal-live)] rounded-[3px] px-2.5 py-1 uppercase tracking-tight">
               {team.selected_track || "GENERAL"}
             </div>
-            <div className="font-ui text-[11px] text-[var(--text-secondary)]">
+            <div className="font-ui text-[11px] text-[var(--text-secondary)] uppercase tracking-tight">
               Node Sync Nominal · Latency 14ms
             </div>
           </div>
@@ -383,28 +363,37 @@ export default function ParticipantDashboard() {
             {activeTab === "overview" ? (
               <>
                 {/* Page Header */}
-                <div className="mb-[32px] border-b border-[var(--border)] pb-6">
-                  <div className="font-ui text-[10px] text-[var(--text-muted)] tracking-[0.18em] uppercase mb-1">
+                <div className="mb-[32px]">
+                  <div className="t-section mb-1 uppercase">
                     PARTICIPANT · DASHBOARD
                   </div>
-                  <h1 className="font-display text-[48px] font-bold text-[var(--text-primary)] leading-none mb-2 tracking-tight uppercase">
+                  <h1 className="t-display mb-2 text-[var(--text-primary)] uppercase">
                     {team.name}
                   </h1>
-                  <div className="font-body text-[13px] text-[var(--text-secondary)]">
-                    Operational Node · {team.team_members?.length || 0} Operators Active · Sector: {event?.name || "Initializing..."}
+                  <div className="font-body text-[13px] text-[var(--text-secondary)] flex items-center gap-2">
+                    <span>Operational Node</span>
+                    <span className="opacity-30">·</span>
+                    <span>{team.team_members?.length || 0} Operators Active</span>
+                    <span className="opacity-30">·</span>
+                    <span>Sector: {event?.name || "Initializing..."}</span>
                   </div>
+                  <div className="w-full h-[1px] bg-[var(--border)] mt-6"></div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px] mb-[24px]">
-                  
-                  {/* Left Column (Info & Timeline) - 40% */}
-                  <div className="lg:col-span-5 flex flex-col gap-[24px]">
-                    
+                {/* 5.6 Stat Row (Simplified for participant) */}
+                <div className="grid grid-cols-4 gap-[16px] mb-[32px]">
+                  <StatCard label="Cluster Sync" value="100%" sub="All environments nominal" variant="live" />
+                  <StatCard label="Active Tasks" value="04" sub="Pending submission" variant="info" />
+                  <StatCard label="Uplink" value="LIVE" sub="Secure channel encrypted" variant="live" />
+                  <StatCard label="Risk Level" value="SAFE" sub="No integrity flags" variant="default" />
+                </div>
+
+                <div className="grid grid-cols-12 gap-[24px]">
+                  {/* Left Column */}
+                  <div className="col-span-12 lg:col-span-5 flex flex-col gap-[24px]">
                     {/* Team Roster */}
-                    <div className="flex flex-col gap-2">
-                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
-                          Node Operator Roster
-                       </div>
+                    <div className="flex flex-col gap-3">
+                       <div className="t-section uppercase">Node Operator Roster</div>
                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-3">
                           {team.team_members?.map((member: any) => (
                             <div key={member.user_id} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0">
@@ -412,73 +401,66 @@ export default function ParticipantDashboard() {
                                 {member.users?.name?.charAt(0) || "U"}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-ui text-[13px] text-[var(--text-primary)]">{member.users?.name || "Anonymous"}</span>
-                                <span className="font-body text-[10px] text-[var(--text-muted)] uppercase">{member.users?.email}</span>
+                                <span className="font-ui text-[13px] text-[var(--text-primary)] uppercase">{member.users?.name || "Anonymous"}</span>
+                                <span className="t-micro uppercase">{member.users?.email}</span>
                               </div>
                               {member.user_id === team.leader_id && (
-                                <span className="ml-auto font-ui text-[9px] px-1.5 py-0.5 rounded-[2px] bg-[rgba(58,158,191,0.1)] text-[var(--signal-info)] border border-[rgba(58,158,191,0.3)]">LEAD</span>
+                                <span className="ml-auto font-ui text-[9px] px-1.5 py-0.5 rounded-[2px] bg-[var(--signal-info)]/10 text-[var(--signal-info)] border border-[var(--signal-info)]/30 uppercase">Lead</span>
                               )}
                             </div>
                           ))}
                        </div>
                     </div>
 
-                    {/* Event Timeline */}
-                    <div className="flex flex-col gap-2">
-                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
-                          Mission Timeline
-                       </div>
+                    {/* Timeline */}
+                    <div className="flex flex-col gap-3">
+                       <div className="t-section uppercase">Mission Timeline</div>
                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6">
                           <Timeline items={timelineItems} />
                        </div>
                     </div>
-
                   </div>
 
-                  {/* Right Column (Mentor & Repo) - 60% */}
-                  <div className="lg:col-span-7 flex flex-col gap-[24px]">
-                    
-                    {/* Mentor Panel */}
-                    <div className="flex flex-col gap-2">
-                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
-                          Assigned Mentor Specialist
+                  {/* Right Column */}
+                  <div className="col-span-12 lg:col-span-7 flex flex-col gap-[24px]">
+                    {/* CLI Integration - Prominent */}
+                    <div className="flex flex-col gap-3 bg-[var(--surface-1)] border border-[var(--border-hot)] rounded-[4px] p-6 shadow-[0_0_20px_rgba(0,0,0,0.3)]">
+                       <div className="flex justify-between items-center">
+                          <div className="t-section text-[var(--signal-live)] uppercase tracking-widest">
+                            CLI_INTEGRATION_CHANNEL
+                          </div>
+                          <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[var(--signal-info)]/10 text-[var(--signal-info)] border border-[var(--signal-info)]/30 rounded-[2px] uppercase">Unique Access Token</span>
                        </div>
-                       {mentor ? (
-                        <MentorCard
-                          teamId={team.id}
-                          name={mentor.name}
-                          initials={mentor.name?.split(" ").map((n: string) => n[0]).join("") || "?"}
-                          matchPct={team.mentor_match_score || 0}
-                          tags={mentor.mentor_profiles?.expertise_tags || []}
+                       <div className="mt-2">
+                         <CLIBlock
+                          prompt={`hackbridge init ${cliToken || "GENERATING_TOKEN..."}`}
+                          successMessage={cliLinkedAt ? "Node linked successfully. Signal strength: 100%." : undefined}
                         />
-                      ) : (
-                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-10 text-center">
-                          <span className="font-body text-[12px] text-[var(--text-muted)] italic">Awaiting specialist assignment... Scanning mentor pool.</span>
-                        </div>
-                      )}
+                       </div>
+                       <p className="t-micro italic text-center uppercase tracking-tighter mt-1 opacity-50">
+                        This cryptographic token is node-exclusive. Transmission prohibited.
+                      </p>
                     </div>
 
-                    {/* GitHub Repository */}
-                    <div className="flex flex-col gap-2">
-                       <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
-                          Data Ingestion (GitHub)
-                       </div>
+                    {/* Repository Ingestion */}
+                    <div className="flex flex-col gap-3">
+                       <div className="t-section uppercase">Data Ingestion (GitHub)</div>
                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-5 flex flex-col gap-4">
                           <div className="flex gap-3">
                             <Input
                               placeholder="https://github.com/username/repo"
                               value={repoUrl}
                               onChange={(e) => setRepoUrl(e.target.value)}
-                              className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-body text-[13px]"
+                              className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-body text-[13px] focus:border-[var(--signal-live)] transition-all"
                             />
-                            <Button variant="secondary" onClick={handleAnalyse} disabled={loading} className="h-11 px-6">
-                              {loading ? "SYNC..." : "ANALYSE"}
+                            <Button onClick={handleAnalyse} disabled={loading} className="h-11 px-8 bg-[var(--signal-live)] text-[var(--void)] font-bold">
+                              {loading ? "SYNCING..." : "ANALYSE"}
                             </Button>
                           </div>
 
-                          {(analyzed || (team?.repo_fingerprint && (team.repo_fingerprint.primary_language || team.repo_fingerprint.languages?.length > 0))) && (
-                            <div className="p-4 bg-[rgba(58,158,191,0.06)] border border-[rgba(58,158,191,0.2)] rounded-[4px] font-body text-[12px] text-[var(--text-primary)] leading-relaxed">
-                               <span className="text-[var(--signal-info)] mr-2 font-bold">DETECTED:</span>
+                          {(team?.repo_fingerprint && (team.repo_fingerprint.primary_language || team.repo_fingerprint.languages?.length > 0)) && (
+                            <div className="p-4 bg-[var(--signal-info)]/5 border border-[var(--signal-info)]/20 rounded-[4px] font-body text-[12px] text-[var(--text-primary)] leading-relaxed">
+                               <span className="text-[var(--signal-info)] mr-2 font-bold uppercase">Detected:</span>
                                {team?.repo_fingerprint?.primary_language || team?.repo_fingerprint?.languages?.[0]} architecture 
                                {(team?.repo_fingerprint?.tech_stack?.length > 0 || team?.repo_fingerprint?.frameworks?.length > 0) ? 
                                  ` with ${(team.repo_fingerprint.tech_stack || team.repo_fingerprint.frameworks)?.join(", ")}` : ""}. 
@@ -488,143 +470,277 @@ export default function ParticipantDashboard() {
                        </div>
                     </div>
 
-                    {/* CLI Integration */}
-                    <div className="flex flex-col gap-2">
-                       <div className="flex justify-between items-center mb-1">
-                          <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase">
-                            CLI_INTEGRATION_CHANNEL
-                          </div>
-                          <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(99,115,210,0.1)] text-[var(--signal-info)] border border-[rgba(99,115,210,0.3)] rounded-[2px]">UNIQUE_TOKEN</span>
-                       </div>
-                       <CLIBlock
-                        prompt={`hackbridge init ${cliToken || "YOUR_PERSONAL_TOKEN"}`}
-                        successMessage={cliLinkedAt ? "Personal CLI linked. Your activity will now be attributed to you." : undefined}
-                      />
-                      <p className="font-body text-[9px] text-[var(--text-muted)] mt-1 italic text-center uppercase tracking-tighter">
-                        This cryptographic token is node-exclusive. Transmission prohibited.
-                      </p>
+                    {/* Mentor Specialist */}
+                    <div className="flex flex-col gap-3">
+                       <div className="t-section uppercase">Assigned Specialist</div>
+                       {mentor ? (
+                        <MentorCard
+                          teamId={team.id}
+                          name={mentor.name}
+                          initials={mentor.name?.split(" ").map((n: string) => n[0]).join("") || "?"}
+                          matchPct={team.mentor_match_score || 0}
+                          tags={mentor.mentor_profiles?.expertise_tags || []}
+                        />
+                      ) : (
+                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-10 text-center border-dashed">
+                          <span className="t-label italic uppercase opacity-50">Awaiting specialist assignment... Scanning mentor pool.</span>
+                        </div>
+                      )}
                     </div>
-
                   </div>
                 </div>
               </>
             ) : (
               <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {/* Team Sync Header */}
-                <div className="mb-[12px] border-b border-[var(--border)] pb-6">
-                  <div className="font-ui text-[10px] text-[var(--text-muted)] tracking-[0.18em] uppercase mb-1">
+                {/* Team Sync View */}
+                <div className="mb-[12px]">
+                  <div className="t-section mb-1 uppercase">
                     OPERATIONS · COLLABORATION
                   </div>
-                  <h1 className="font-display text-[48px] font-bold text-[var(--text-primary)] leading-none mb-2 tracking-tight uppercase">
+                  <h1 className="t-display mb-2 text-[var(--text-primary)] uppercase">
                     TEAM_SYNC
                   </h1>
-                  <div className="font-body text-[13px] text-[var(--text-secondary)]">
-                    Cross-Node Environment Auditing · Real-time Dependency Synchronization
+                  <div className="font-body text-[13px] text-[var(--text-secondary)] flex items-center gap-2">
+                    <span>Cross-Node Environment Auditing</span>
+                    <span className="opacity-30">·</span>
+                    <span>Real-time Dependency Synchronization</span>
                   </div>
+                  <div className="w-full h-[1px] bg-[var(--border)] mt-6"></div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Connected Nodes */}
                   <div className="lg:col-span-1 flex flex-col gap-4">
-                    <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
-                      Connected Cluster Nodes ({collabData?.environments?.length || 0})
-                    </div>
+                    <div className="t-section uppercase">Connected Cluster Nodes ({collabData?.environments?.length || 0})</div>
                     <div className="flex flex-col gap-2">
                       {collabData?.environments?.map((env: any) => {
                         const isActive = (Date.now() - new Date(env.last_active).getTime()) < 10 * 60 * 1000;
                         return (
                           <div 
                             key={env.id} 
-                            className={`p-4 cursor-pointer transition-all border rounded-[4px] ${selectedEnvId === env.id ? "bg-[rgba(0,255,194,0.04)] border-[var(--signal-live)]" : "bg-[var(--surface-1)] border-[var(--border)] hover:border-[var(--border-hot)]"}`}
+                            className={`p-4 cursor-pointer transition-all border rounded-[4px] ${selectedEnvId === env.id ? "bg-[var(--signal-live)]/5 border-[var(--signal-live)] shadow-[0_0_15px_rgba(0,255,194,0.1)]" : "bg-[var(--surface-1)] border-[var(--border)] hover:border-[var(--border-hot)]"}`}
                             onClick={() => setSelectedEnvId(env.id)}
                           >
                             <div className="flex justify-between items-center">
                               <div className="flex items-center gap-3">
                                 <div className={`w-2 h-2 rounded-full ${isActive ? "bg-[var(--signal-live)] shadow-[0_0_8px_rgba(0,255,194,0.6)]" : "bg-[var(--text-muted)]"}`} />
-                                <span className="font-ui text-[13px] font-bold text-[var(--text-primary)]">{env.users?.name}</span>
+                                <span className="font-ui text-[13px] font-bold text-[var(--text-primary)] uppercase">{env.users?.name}</span>
                               </div>
-                              <span className={`font-ui text-[9px] px-1.5 py-0.5 rounded-[2px] border ${isActive ? "bg-[rgba(0,255,194,0.1)] text-[var(--signal-live)] border-[rgba(0,255,194,0.3)]" : "bg-[rgba(46,74,90,0.1)] text-[var(--text-muted)] border-[var(--border)]"}`}>
+                              <span className={`t-micro px-1.5 py-0.5 rounded-[2px] border ${isActive ? "bg-[var(--signal-live)]/10 text-[var(--signal-live)] border-[var(--signal-live)]/30" : "bg-white/5 text-[var(--text-muted)] border-[var(--border)]"}`}>
                                 {isActive ? "ONLINE" : "OFFLINE"}
                               </span>
                             </div>
-                            <div className="mt-2 font-mono text-[10px] text-[var(--text-muted)] uppercase tracking-tight">
-                              Last sync: {new Date(env.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            <div className="mt-2 t-micro uppercase opacity-60 flex justify-between">
+                              <span>Last sync: {new Date(env.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {selectedEnvId === env.id && <span className="text-[var(--signal-live)] font-bold">SELECTED</span>}
                             </div>
                           </div>
                         );
                       })}
                     </div>
 
-                    <div className="bg-[var(--surface-2)] border border-[var(--border-hot)] rounded-[4px] p-4 mt-2">
-                      <h3 className="font-ui text-[10px] text-[var(--text-secondary)] mb-2 uppercase tracking-widest">Global Sync Command</h3>
-                      <div className="font-mono text-[11px] text-[var(--signal-live)] bg-[var(--void)] p-2 rounded border border-[var(--border)]">
+                    <div className="bg-[var(--surface-2)] border border-[var(--border-hot)] rounded-[4px] p-5 mt-2">
+                      <h3 className="t-section mb-3 text-[var(--text-secondary)]">Global Sync Command</h3>
+                      <div className="t-code bg-[var(--void)] p-3 rounded border border-[var(--border)] text-[var(--signal-live)]">
                         $ hackbridge collab sync
                       </div>
                     </div>
                   </div>
 
-                  {/* Environment Audit */}
-                  <div className="lg:col-span-2 flex flex-col gap-4">
-                    <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-1">
-                      Cluster Integrity Audit vs Official Master
-                    </div>
-                    <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] overflow-hidden">
-                      <table className="w-full text-left font-mono text-[11px]">
-                        <thead className="bg-[var(--surface-2)] text-[var(--text-muted)] uppercase tracking-tighter border-b border-[var(--border)]">
-                          <tr>
-                            <th className="px-4 py-3 font-medium">Node Operator</th>
-                            <th className="px-4 py-3 font-medium">Runtime Stack</th>
-                            <th className="px-4 py-3 font-medium text-right">Sync Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border)]">
-                          {collabData?.environments?.map((env: any) => {
-                            const officialDeps = collabData?.official_state?.dependencies || {};
-                            let isDrifting = false;
-                            for (const [name, reqVer] of Object.entries(officialDeps)) {
-                              if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) {
-                                isDrifting = true;
-                                break;
+                  {/* Audit Table & Details */}
+                  <div className="lg:col-span-2 flex flex-col gap-8">
+                    <div className="flex flex-col gap-4">
+                      <div className="t-section uppercase">Cluster Integrity Audit vs Master</div>
+                      <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                        <table className="w-full text-left t-code">
+                          <thead className="bg-[var(--surface-2)] text-[var(--text-muted)] uppercase border-b border-[var(--border)]">
+                            <tr>
+                              <th className="px-4 py-3 font-medium">Node Operator</th>
+                              <th className="px-4 py-3 font-medium">Runtime Stack</th>
+                              <th className="px-4 py-3 font-medium text-right">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border)]">
+                            {collabData?.environments?.map((env: any) => {
+                              const officialDeps = collabData?.official_state?.dependencies || {};
+                              let isDrifting = false;
+                              for (const [name, reqVer] of Object.entries(officialDeps)) {
+                                if (env.dependencies?.[name] && env.dependencies[name] !== reqVer) {
+                                  isDrifting = true;
+                                  break;
+                                }
                               }
-                            }
-                            
-                            return (
-                              <tr key={env.id} className="hover:bg-[var(--surface-2)] transition-colors group">
-                                <td className="px-4 py-3 font-bold text-[var(--text-primary)]">{env.users?.name}</td>
-                                <td className="px-4 py-3 text-[var(--text-secondary)]">
-                                  {env.tools?.["node"] ? `Node ${env.tools["node"]}` : 
-                                   env.tools?.["python"] ? `Py ${env.tools["python"]}` : 
-                                   env.tools?.["go"] ? `Go ${env.tools["go"]}` : 
-                                   env.tools?.["rustc"] ? `Rust ${env.tools["rustc"]}` : "Unknown"}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  {isDrifting ? (
-                                    <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(255,45,85,0.1)] text-[var(--signal-alert)] border border-[rgba(255,45,85,0.3)] rounded-[2px]">DRIFT</span>
-                                  ) : (
-                                    <span className="font-ui text-[9px] px-1.5 py-0.5 bg-[rgba(0,255,194,0.1)] text-[var(--signal-live)] border border-[rgba(0,255,194,0.3)] rounded-[2px]">SYNCED</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                              
+                              return (
+                                <tr 
+                                  key={env.id} 
+                                  onClick={() => setSelectedEnvId(env.id)}
+                                  className={`cursor-pointer transition-colors ${selectedEnvId === env.id ? "bg-[var(--signal-live)]/5" : "hover:bg-white/5"}`}
+                                >
+                                  <td className="px-4 py-3 font-bold text-[var(--text-primary)] uppercase">{env.users?.name}</td>
+                                  <td className="px-4 py-3 text-[var(--text-secondary)]">
+                                    {env.tools?.["node"] ? `Node ${env.tools["node"]}` : 
+                                     env.tools?.["python"] ? `Py ${env.tools["python"]}` : 
+                                     env.tools?.["go"] ? `Go ${env.tools["go"]}` : 
+                                     env.tools?.["rustc"] ? `Rust ${env.tools["rustc"]}` : "Unknown"}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    {isDrifting ? (
+                                      <span className="t-micro px-1.5 py-0.5 bg-[var(--signal-alert)]/10 text-[var(--signal-alert)] border border-[var(--signal-alert)]/30 rounded-[2px] uppercase font-bold">Drift Detected</span>
+                                    ) : (
+                                      <span className="t-micro px-1.5 py-0.5 bg-[var(--signal-live)]/10 text-[var(--signal-live)] border border-[var(--signal-live)]/30 rounded-[2px] uppercase font-bold">Synced</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
 
-                    {/* History Timeline */}
-                    <div className="mt-4">
-                      <div className="font-ui text-[10px] text-[var(--text-secondary)] tracking-[0.18em] uppercase mb-4">
-                        Cluster Evolution Timeline
+                    {/* Dependency Drift Details */}
+                    {selectedEnvId && (
+                      <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex items-center justify-between">
+                            <div className="t-section uppercase text-[var(--text-primary)]">
+                              Detailed Dependency Audit · {collabData.environments.find((e: any) => e.id === selectedEnvId)?.users?.name}
+                            </div>
+                            <div className="t-micro uppercase text-[var(--signal-info)] font-bold">
+                              Source: Master_Manifest
+                            </div>
+                          </div>
+                          
+                          <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] overflow-hidden">
+                            <table className="w-full text-left t-code">
+                              <thead className="bg-[var(--surface-2)] text-[var(--text-muted)] uppercase border-b border-[var(--border)]">
+                                <tr>
+                                  <th className="px-4 py-2 font-medium text-[11px]">Package Identifier</th>
+                                  <th className="px-4 py-2 font-medium text-[11px]">Master Version</th>
+                                  <th className="px-4 py-2 font-medium text-[11px]">Node Version</th>
+                                  <th className="px-4 py-2 font-medium text-[11px] text-right">Differential</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-[var(--border)]">
+                                {(() => {
+                                  const selectedEnv = collabData.environments.find((e: any) => e.id === selectedEnvId);
+                                  const officialDeps = collabData?.official_state?.dependencies || {};
+                                  const allDepKeys = Array.from(new Set([...Object.keys(officialDeps), ...Object.keys(selectedEnv?.dependencies || {})]));
+                                  
+                                  const rows = allDepKeys.map(pkg => {
+                                    const masterVer = officialDeps[pkg];
+                                    const nodeVer = selectedEnv?.dependencies?.[pkg];
+                                    const isMismatched = masterVer && nodeVer && masterVer !== nodeVer;
+                                    const isMissingLocal = masterVer && !nodeVer;
+                                    const isExtraLocal = !masterVer && nodeVer;
+
+                                    if (!isMismatched && !isMissingLocal && !isExtraLocal) return null;
+
+                                    return (
+                                      <tr key={pkg} className="bg-[var(--void)]/50">
+                                        <td className="px-4 py-2 text-[var(--text-primary)] font-bold">{pkg}</td>
+                                        <td className="px-4 py-2 text-[var(--text-muted)]">{masterVer || "N/A"}</td>
+                                        <td className="px-4 py-2 text-[var(--text-secondary)]">{nodeVer || "MISSING"}</td>
+                                        <td className="px-4 py-2 text-right">
+                                          {isMismatched ? (
+                                            <span className="text-[var(--signal-alert)]">MISMATCH</span>
+                                          ) : isMissingLocal ? (
+                                            <span className="text-[var(--signal-alert)]">REQUIRED</span>
+                                          ) : (
+                                            <span className="text-[var(--signal-info)]">UNTRACKED</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  }).filter(Boolean);
+                                  
+                                  if (rows.length === 0) {
+                                    return (
+                                      <tr>
+                                        <td colSpan={4} className="px-4 py-12 text-center t-label italic opacity-30 uppercase">
+                                          No environment drift detected for this node
+                                        </td>
+                                      </tr>
+                                    );
+                                  }
+                                  return rows;
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Environment Secrets Check */}
+                        <div className="flex flex-col gap-4">
+                          <div className="t-section uppercase text-[var(--text-primary)]">
+                            Environment Secrets Integrity Audit
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {(() => {
+                              const selectedEnv = collabData.environments.find((e: any) => e.id === selectedEnvId);
+                              const envKeys = selectedEnv?.env_keys || {};
+                              const keys = Object.keys(envKeys);
+                              
+                              if (keys.length === 0) {
+                                return <div className="col-span-2 t-micro uppercase opacity-30 italic">No environment variables tracked for this node.</div>;
+                              }
+                              
+                              return keys.map(key => (
+                                <div key={key} className="flex items-center justify-between p-3 bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] t-code">
+                                  <span className="text-[var(--text-primary)] font-bold">{key}</span>
+                                  {envKeys[key] === "present" ? (
+                                    <span className="flex items-center gap-2 text-[var(--signal-live)] font-bold text-[10px]">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--signal-live)]" />
+                                      PRESENT
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-2 text-[var(--signal-alert)] font-bold text-[10px]">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--signal-alert)] animate-pulse" />
+                                      MISSING
+                                    </span>
+                                  )}
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-3">
-                        {collabData?.history?.map((entry: any) => (
-                          <div key={entry.id} className="flex gap-4 relative pl-5 border-l border-[var(--border)] py-1 group">
-                            <div className="absolute left-[-4.5px] top-3 w-2 h-2 rounded-full bg-[var(--border-hot)] group-hover:bg-[var(--signal-live)] transition-colors" />
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-3">
-                                <span className="font-ui text-[13px] font-bold text-[var(--text-primary)]">{entry.message}</span>
-                                <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">{new Date(entry.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    )}
+
+                    {/* History */}
+                    <div className="mt-4">
+                      <div className="t-section uppercase mb-6">Evolution Timeline</div>
+                      <div className="flex flex-col gap-8">
+                        {collabData?.history?.slice(0, 8).map((entry: any) => (
+                          <div key={entry.id} className="flex gap-6 relative pl-6 border-l border-[var(--border)] py-1 group">
+                            <div className="absolute left-[-5px] top-3 w-2.5 h-2.5 rounded-full bg-[var(--border-hot)] group-hover:bg-[var(--signal-live)] transition-colors shadow-[0_0_8px_rgba(0,0,0,0.5)]" />
+                            <div className="flex flex-col flex-1 gap-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-body text-[14px] font-bold uppercase text-[var(--text-primary)] tracking-wide">{entry.message}</span>
+                                <span className="t-micro uppercase opacity-50 bg-[var(--surface-2)] px-2 py-0.5 rounded-[2px]">{new Date(entry.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
+                              
+                              {/* Detailed Changes Breakdown */}
+                              {entry.changes && (entry.changes.added?.length > 0 || entry.changes.updated?.length > 0 || entry.changes.removed?.length > 0) && (
+                                <div className="mt-1 flex flex-wrap gap-2">
+                                  {entry.changes.added?.map((pkg: string) => (
+                                    <span key={pkg} className="t-micro px-1.5 py-0.5 bg-[var(--signal-live)]/10 text-[var(--signal-live)] border border-[var(--signal-live)]/20 rounded-[2px] font-bold">
+                                      + {pkg}
+                                    </span>
+                                  ))}
+                                  {entry.changes.updated?.map((upd: any) => (
+                                    <span key={upd.name} className="t-micro px-1.5 py-0.5 bg-[var(--signal-info)]/10 text-[var(--signal-info)] border border-[var(--signal-info)]/20 rounded-[2px] font-bold">
+                                      Δ {upd.name}: {upd.old} → {upd.new}
+                                    </span>
+                                  ))}
+                                  {entry.changes.removed?.map((pkg: string) => (
+                                    <span key={pkg} className="t-micro px-1.5 py-0.5 bg-[var(--signal-alert)]/10 text-[var(--signal-alert)] border border-[var(--signal-alert)]/20 rounded-[2px] font-bold">
+                                      - {pkg}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -634,19 +750,17 @@ export default function ParticipantDashboard() {
                 </div>
               </div>
             )}
-
-
           </div>
 
-          {/* Bottom Status Bar */}
+          {/* 5.10 Bottom Status Bar */}
           <div className="h-[32px] mt-auto flex-shrink-0 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center">
-            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center t-micro uppercase">
               <span className="text-[var(--signal-live)] mr-2">●</span> NODE_LINK_ESTABLISHED
             </div>
-            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+            <div className="flex-1 border-r border-[var(--border)] flex items-center justify-center t-micro uppercase">
               <span className="text-[var(--signal-info)] mr-2">●</span> CLI_FEED_NOMINAL
             </div>
-            <div className="flex-1 flex items-center justify-center font-ui text-[10px] text-[var(--text-muted)]">
+            <div className="flex-1 flex items-center justify-center t-micro uppercase">
               <span className="text-[var(--signal-clean)] mr-2">●</span> SECURITY_VERIFIED
             </div>
           </div>
@@ -654,4 +768,4 @@ export default function ParticipantDashboard() {
       </div>
     </div>
   )
-}
+}

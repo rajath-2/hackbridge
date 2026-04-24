@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from typing import Optional
 from core.dependencies import get_current_user
 from core.supabase_client import get_supabase
 from services import pdf_service, groq_service
@@ -6,7 +7,11 @@ from services import pdf_service, groq_service
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("/resume")
-async def upload_resume(file: UploadFile = File(...), user=Depends(get_current_user)):
+async def upload_resume(
+    file: UploadFile = File(...), 
+    event_id: Optional[str] = None,
+    user=Depends(get_current_user)
+):
     """Upload PDF resume, extract text via opendataloader-pdf, and analyze via Groq."""
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -26,6 +31,7 @@ async def upload_resume(file: UploadFile = File(...), user=Depends(get_current_u
         if user["role"] == "mentor":
             sb.table("mentor_profiles").upsert({
                 "user_id": user["id"],
+                "event_id": event_id,
                 "expertise_tags": analysis["expertise_tags"],
                 "bio": analysis["bio"],
                 "resume_raw": text
@@ -33,6 +39,7 @@ async def upload_resume(file: UploadFile = File(...), user=Depends(get_current_u
         elif user["role"] == "judge":
             sb.table("judge_profiles").upsert({
                 "user_id": user["id"],
+                "event_id": event_id,
                 "domain": analysis["domain"],
                 "resume_raw": text
             }, on_conflict="user_id").execute()

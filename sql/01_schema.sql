@@ -50,6 +50,7 @@ CREATE TABLE users (
 CREATE TABLE mentor_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
     expertise_tags TEXT[] DEFAULT '{}',
     bio TEXT,
     resume_raw TEXT,
@@ -63,6 +64,7 @@ CREATE TABLE mentor_profiles (
 CREATE TABLE judge_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
     title TEXT,
     domain TEXT,
     resume_raw TEXT,
