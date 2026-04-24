@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export type Notification = {
@@ -13,7 +13,7 @@ export type Notification = {
 
 export function useNotifications(eventId: string, userId: string, role: string) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     if (!eventId || !userId) return;

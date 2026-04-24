@@ -36,6 +36,7 @@ class LocalScanPayload(BaseModel):
     language_breakdown: Dict[str, int]
     pre_event_files: List[str]
     scan_timestamp: datetime
+    team_code: str
 
 class CommitPayload(BaseModel):
     team_code: str

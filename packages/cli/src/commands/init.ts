@@ -18,11 +18,12 @@ export async function initAction(teamCode: string, options: any) {
 
     // 1. Validate team code and fetch event start time
     // For this implementation, we assume the API has a public endpoint for validation
-    const teamResp = await axios.post(`${apiBase}/teams/join`, { team_code: teamCode });
+    const teamResp = await axios.get(`${apiBase}/teams/validate/${teamCode}`);
     const { team_id, event_id } = teamResp.data;
 
     const eventResp = await axios.get(`${apiBase}/events/${event_id}`);
     const startTime = new Date(eventResp.data.start_time);
+    const eventCode = eventResp.data.event_code;
 
     console.log(chalk.green('✓ Team verified. Starting initial codebase scan...'));
 
@@ -42,6 +43,7 @@ export async function initAction(teamCode: string, options: any) {
       team_id,
       event_id,
       team_code: teamCode,
+      event_code: eventCode,
       api_base: apiBase,
       initialized_at: new Date().toISOString()
     }, { spaces: 2 });

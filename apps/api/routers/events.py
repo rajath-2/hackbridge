@@ -18,7 +18,7 @@ async def create_event(event: EventCreate, user=Depends(get_current_user)):
         "start_time": event.start_time.isoformat(),
         "end_time": event.end_time.isoformat(),
         "tracks": event.tracks,
-        "judging_rounds": [r.dict() for r in event.judging_rounds],
+        "judging_rounds": [r.model_dump() for r in event.judging_rounds],
         "created_by": user["id"]
     }).execute()
     

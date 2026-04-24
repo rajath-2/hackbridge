@@ -170,6 +170,19 @@ export default function OrganizerDashboard() {
                 <span className="text-[11px] text-[var(--hb-text)] font-semibold">124</span>
               </div>
 
+
+              <div className="flex justify-between items-center py-1">
+                <span className="text-[11px] text-[var(--hb-text)]">ByteForce</span>
+                <span className="text-[11px] text-[var(--hb-muted)]">3 pings</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-[11px] text-[var(--hb-text)]">CodeTitans</span>
+                <span className="text-[11px] text-[var(--hb-muted)]">2 pings</span>
+              </div>
+            </Card>
+          </div>
+        </div>
+
         {/* Matching Optimization Panel (v1.5) */}
         <div className="mb-6">
           <div className="flex justify-between items-end mb-2">
@@ -213,17 +226,6 @@ export default function OrganizerDashboard() {
                 No active matching suggestions. Run a scan to evaluate assignments.
               </div>
             )}
-          </div>
-        </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-[11px] text-[var(--hb-text)]">ByteForce</span>
-                <span className="text-[11px] text-[var(--hb-muted)]">3 pings</span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span className="text-[11px] text-[var(--hb-text)]">CodeTitans</span>
-                <span className="text-[11px] text-[var(--hb-muted)]">2 pings</span>
-              </div>
-            </Card>
           </div>
         </div>
 

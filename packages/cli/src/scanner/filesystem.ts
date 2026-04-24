@@ -38,7 +38,7 @@ export async function scanDirectory(dir: string, startTime: Date): Promise<ScanR
         result.language_breakdown[ext] = (result.language_breakdown[ext] || 0) + 1;
 
         // Pre-event check (ctime/mtime)
-        if (stat.ctime < startTime || stat.mtime < startTime) {
+        if (stat.ctime < startTime && stat.mtime < startTime) {
           result.pre_event_files.push(path.relative(dir, fullPath));
         }
       }

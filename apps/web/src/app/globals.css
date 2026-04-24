@@ -22,7 +22,7 @@
   --color-hb-muted: rgba(220, 224, 240, 0.52);
   --color-hb-dim: rgba(220, 224, 240, 0.28);
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -53,7 +53,7 @@
   body {
     background-color: var(--hb-bg);
     color: var(--hb-text);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
 }

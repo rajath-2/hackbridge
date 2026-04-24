@@ -15,9 +15,9 @@ export async function pingAction() {
 
   try {
     console.log(chalk.blue('Sending ping to your mentor...'));
-    await axios.post(`${config.api_base}/teams/${config.team_id}/mentor-ping`, 
-      "Help requested via CLI", 
-      { headers: { 'Content-Type': 'text/plain' } }
+    await axios.post(`${config.api_base}/teams/${config.team_id}/cli/mentor-ping`, 
+      { team_code: config.team_code, message: "Help requested via CLI" }, 
+      { headers: { 'Content-Type': 'application/json' } }
     );
     console.log(chalk.green('✓ Ping sent! Your mentor has been notified.'));
   } catch (error: any) {

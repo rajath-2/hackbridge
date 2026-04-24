@@ -13,9 +13,9 @@ if [ ! -f "$STATE_FILE" ]; then
   exit 0
 fi
 
-TEAM_CODE=$(grep -o '"team_code": *"[^"]*"' $STATE_FILE | grep -o '"[^"]*"$' | tr -d '"')
-EVENT_ID=$(grep -o '"event_id": *"[^"]*"' $STATE_FILE | grep -o '"[^"]*"$' | tr -d '"')
-API_BASE=$(grep -o '"api_base": *"[^"]*"' $STATE_FILE | grep -o '"[^"]*"$' | tr -d '"')
+TEAM_CODE=$(node -e "console.log(require('./.hackbridge/state.json').team_code)")
+EVENT_CODE=$(node -e "console.log(require('./.hackbridge/state.json').event_code)")
+API_BASE=$(node -e "console.log(require('./.hackbridge/state.json').api_base)")
 
 if [ -z "$TEAM_CODE" ] || [ -z "$API_BASE" ]; then
   exit 0
@@ -31,7 +31,7 @@ curl -X POST "$API_BASE/commits/" \\
   -H "Content-Type: application/json" \\
   -d '{
     "team_code": "'"$TEAM_CODE"'",
-    "event_code": "'"$EVENT_ID"'",
+    "event_code": "'"$EVENT_CODE"'",
     "message": "'"$COMMIT_MSG"'",
     "files_changed": ["'"$FILES_CHANGED"'"],
     "timestamp": "'"$TIMESTAMP"'"

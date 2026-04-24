@@ -5,18 +5,47 @@ import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SignupPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState("participant")
+  const [role, setRole] = useState<"participant" | "mentor" | "organizer">("participant")
+  const [errorMsg, setErrorMsg] = useState("")
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClient()
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock signup, redirecting to selected role
-    router.push(`/dashboard/${role}`)
+    setErrorMsg("")
+    setLoading(true)
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role,
+        }
+      }
+    })
+
+    setLoading(false)
+
+    if (error) {
+      setErrorMsg(error.message)
+      return
+    }
+
+    if (data.user) {
+      // Auto redirect based on role
+      if (role === "organizer") router.push("/dashboard/organizer")
+      else if (role === "mentor") router.push("/dashboard/mentor")
+      else router.push("/dashboard/participant")
+    }
   }
 
   return (
@@ -26,9 +55,15 @@ export default function SignupPage() {
           Hack<span className="text-[var(--hb-indigo-bright)]">Bridge</span>
         </h1>
         <h2 className="text-[15px] font-semibold text-[var(--hb-muted)] mb-6 text-center">
-          Create an account
+          Create an Account
         </h2>
         
+        {errorMsg && (
+          <div className="w-full bg-[rgba(240,76,76,0.1)] border border-[var(--hb-red-dim)] text-[var(--hb-red)] text-[12px] p-2 rounded mb-4 text-center">
+            {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleSignup} className="w-full flex flex-col gap-4">
           <div>
             <Input 
@@ -51,25 +86,22 @@ export default function SignupPage() {
           <div>
             <Input 
               type="password" 
-              placeholder="Password" 
+              placeholder="Password (min 6 chars)" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
           <div>
-            <Select 
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="organizer">Organizer</option>
+            <Select value={role} onChange={(e) => setRole(e.target.value as any)}>
               <option value="participant">Participant</option>
               <option value="mentor">Mentor</option>
-              <option value="judge">Judge</option>
+              <option value="organizer">Organizer</option>
             </Select>
           </div>
-          <Button type="submit" variant="primary" className="w-full mt-2">
-            Create account
+          <Button type="submit" variant="primary" className="w-full mt-2" disabled={loading}>
+            {loading ? "Creating account..." : "Sign up"}
           </Button>
         </form>
 

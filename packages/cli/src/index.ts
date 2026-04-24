@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { initAction } from './commands/init';
 import { statusAction } from './commands/status';
+import { pingAction } from './commands/ping';
 
 const program = new Command();
 
@@ -52,9 +53,7 @@ program
 program
   .command('ping')
   .description('Request help from your assigned mentor')
-  .action(() => {
-    console.log(chalk.blue('Sending mentor ping...'));
-  });
+  .action(pingAction);
 
 program
   .command('timeline')

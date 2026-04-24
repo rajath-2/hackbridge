@@ -4,16 +4,48 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [errorMsg, setErrorMsg] = useState("")
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClient()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock login, redirecting to organizer for demo
-    router.push("/dashboard/organizer")
+    setErrorMsg("")
+    setLoading(true)
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    
+    if (error) {
+      setErrorMsg(error.message)
+      setLoading(false)
+      return
+    }
+
+    if (data.user) {
+      // Fetch role from users table to redirect correctly
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+        
+      setLoading(false)
+
+      if (userData) {
+        if (userData.role === 'organizer') router.push('/dashboard/organizer')
+        else if (userData.role === 'mentor') router.push('/dashboard/mentor')
+        else router.push('/dashboard/participant')
+      } else {
+        // Fallback
+        router.push('/dashboard/participant')
+      }
+    }
   }
 
   return (
@@ -26,6 +58,12 @@ export default function LoginPage() {
           Sign in to HackBridge
         </h2>
         
+        {errorMsg && (
+          <div className="w-full bg-[rgba(240,76,76,0.1)] border border-[var(--hb-red-dim)] text-[var(--hb-red)] text-[12px] p-2 rounded mb-4 text-center">
+            {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
           <div>
             <Input 
@@ -45,8 +83,8 @@ export default function LoginPage() {
               required
             />
           </div>
-          <Button type="submit" variant="primary" className="w-full mt-2">
-            Sign in
+          <Button type="submit" variant="primary" className="w-full mt-2" disabled={loading}>
+            {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
 

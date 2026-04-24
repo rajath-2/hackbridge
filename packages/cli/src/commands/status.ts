@@ -15,7 +15,7 @@ export async function statusAction() {
   console.log(chalk.blue(`Fetching status for Team ${config.team_id}...`));
 
   try {
-    const resp = await axios.get(`${config.api_base}/teams/${config.team_id}/status`);
+    const resp = await axios.get(`${config.api_base}/teams/${config.team_id}/cli/status?team_code=${config.team_code}`);
     const { team, recent_commits } = resp.data;
 
     console.log(chalk.bold.white('\n--- Team Status ---'));
