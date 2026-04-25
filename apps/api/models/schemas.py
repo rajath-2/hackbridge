@@ -50,6 +50,7 @@ class CommitPayload(BaseModel):
     message: str
     files_changed: List[str]
     timestamp: datetime
+    patch: Optional[str] = None # Full git diff
     cli_token: Optional[str] = None
 
 # --- Matching & Integrity ---
@@ -103,3 +104,13 @@ class OfficialStateUpdate(BaseModel):
     team_id: str
     dependencies: Dict[str, str]
     tools: Dict[str, str]
+
+# --- Task Management ---
+class TaskCreate(BaseModel):
+    team_id: str
+    assigned_to: str
+    title: str
+    description: Optional[str] = None
+
+class TaskVerify(BaseModel):
+    task_id: str

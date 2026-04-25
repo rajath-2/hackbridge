@@ -22,22 +22,40 @@ if [ -z "$TEAM_CODE" ] || [ -z "$API_BASE" ]; then
   exit 0
 fi
 
-COMMIT_HASH=$(git log -1 --format="%H")
 COMMIT_MSG=$(git log -1 --format="%s")
-FILES_CHANGED=$(git diff-tree --no-commit-id -r --name-only HEAD | tr '\\n' ',')
+FILES_CHANGED=$(git diff-tree --no-commit-id -r --name-only HEAD)
+PATCH=$(git diff-tree --no-commit-id -r --patch HEAD)
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Fire and forget POST request
-curl -X POST "$API_BASE/commits/" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "team_code": "'"$TEAM_CODE"'",
-    "event_code": "'"$EVENT_CODE"'",
-    "cli_token": "'"$CLI_TOKEN"'",
-    "message": "'"$COMMIT_MSG"'",
-    "files_changed": ["'"$FILES_CHANGED"'"],
-    "timestamp": "'"$TIMESTAMP"'"
-  }' > /dev/null 2>&1 &
+# Send to HackBridge via Node for safe escaping
+node -e "
+const http = require('http');
+const https = require('https');
+const data = JSON.stringify({
+  team_code: process.argv[1],
+  event_code: process.argv[2],
+  cli_token: process.argv[3],
+  message: process.argv[4],
+  files_changed: process.argv[5].split('\\n').filter(Boolean),
+  patch: process.argv[6],
+  timestamp: process.argv[7]
+});
+
+const url = process.argv[8] + '/commits/';
+const client = url.startsWith('https') ? https : http;
+
+const req = client.request(url, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(data)
+  }
+}, (res) => {});
+
+req.on('error', (e) => {});
+req.write(data);
+req.end();
+" "$TEAM_CODE" "$EVENT_CODE" "$CLI_TOKEN" "$COMMIT_MSG" "$FILES_CHANGED" "$PATCH" "$TIMESTAMP" "$API_BASE" &
 
 exit 0
 `;

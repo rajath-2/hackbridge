@@ -1,5 +1,13 @@
 import sys
+import logging
 from unittest.mock import MagicMock
+
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout
+)
 
 # Monkeypatch for systems with restricted DLL loading (e.g. matplotlib blocked by policy)
 try:

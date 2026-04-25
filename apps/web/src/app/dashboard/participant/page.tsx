@@ -23,7 +23,12 @@ export default function ParticipantDashboard() {
   const [repoUrl, setRepoUrl] = useState("")
   const [loading, setLoading] = useState(true)
   const [collabData, setCollabData] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<"overview" | "sync">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "sync" | "tasks">("overview")
+  const [tasks, setTasks] = useState<any[]>([])
+  const [newTaskTitle, setNewTaskTitle] = useState("")
+  const [newTaskDesc, setNewTaskDesc] = useState("")
+  const [assignedTo, setAssignedTo] = useState("")
+  const [verifyingTaskId, setVerifyingTaskId] = useState<string | null>(null)
   const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null)
   const [pingMsg, setPingMsg] = useState("")
   const [pingSending, setPingSending] = useState(false)
@@ -96,6 +101,8 @@ export default function ParticipantDashboard() {
         if (teamData) {
           const collab = await api.get(`/collaboration/team/${teamData.id}`)
           setCollabData(collab)
+          const tasksData = await api.get(`/collaboration/tasks/${teamData.id}`)
+          setTasks(tasksData || [])
         }
 
         if (teamData?.event_id) {
@@ -114,6 +121,37 @@ export default function ParticipantDashboard() {
     }
     init()
   }, [])
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle || !assignedTo || !team) return
+    try {
+      const res = await api.post("/collaboration/tasks", {
+        team_id: team.id,
+        title: newTaskTitle,
+        description: newTaskDesc,
+        assigned_to: assignedTo
+      })
+      setTasks([res, ...tasks])
+      setNewTaskTitle("")
+      setNewTaskDesc("")
+      setAssignedTo("")
+    } catch (err) {
+      console.error("Failed to create task:", err)
+    }
+  }
+
+  const handleVerifyTask = async (taskId: string) => {
+    setVerifyingTaskId(taskId)
+    try {
+      await api.post("/collaboration/tasks/verify", { task_id: taskId })
+      const updatedTasks = await api.get(`/collaboration/tasks/${team.id}`)
+      setTasks(updatedTasks || [])
+    } catch (err) {
+      console.error("Verification failed:", err)
+    } finally {
+      setVerifyingTaskId(null)
+    }
+  }
 
   const handleJoinTeam = async () => {
     if (!joinCode) return
@@ -359,6 +397,14 @@ export default function ParticipantDashboard() {
               <span className="ml-auto font-ui text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[var(--signal-alert)]/15 text-[var(--signal-alert)] border border-[var(--signal-alert)]/40">{driftCount}</span>
             )}
           </Button>
+          <Button 
+            variant="ghost"
+            onClick={() => setActiveTab("tasks")}
+            className={`px-6 justify-start rounded-none h-[40px] border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'tasks' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
+          >
+            <Send size={14} />
+            Task Manager
+          </Button>
 
           <div className="mt-auto p-6 border-t border-[var(--border)] bg-[var(--surface-1)]">
              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
@@ -537,7 +583,7 @@ export default function ParticipantDashboard() {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : activeTab === "sync" ? (
               <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {/* Team Sync View */}
                 <div className="mb-[12px]">
@@ -792,6 +838,118 @@ export default function ParticipantDashboard() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="mb-[12px]">
+                  <div className="t-section mb-1 uppercase">OPERATIONS · COLLABORATION</div>
+                  <h1 className="t-display mb-2 text-[var(--text-primary)] uppercase">TASK_MANAGER</h1>
+                  <div className="font-body text-[13px] text-[var(--text-secondary)] flex items-center gap-2">
+                    <span>AI-Assisted Task Verification</span>
+                    <span className="opacity-30">·</span>
+                    <span>Commit-Level Accountability</span>
+                  </div>
+                  <div className="w-full h-[1px] bg-[var(--border)] mt-6"></div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Task Creation (Leader Only) */}
+                  <div className="lg:col-span-4 flex flex-col gap-4">
+                    {team?.leader_id === user?.id ? (
+                      <>
+                        <div className="t-section uppercase">Assign New Mission</div>
+                        <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="t-micro uppercase opacity-50">Task Title</label>
+                            <Input 
+                              placeholder="e.g. Implement Auth Flow" 
+                              value={newTaskTitle} 
+                              onChange={(e) => setNewTaskTitle(e.target.value)}
+                              className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="t-micro uppercase opacity-50">Assign To</label>
+                            <Select 
+                              value={assignedTo} 
+                              onChange={(e) => setAssignedTo(e.target.value)}
+                              className="bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] h-11"
+                            >
+                              <option value="">Select Member...</option>
+                              {team.team_members?.map((m: any) => (
+                                <option key={m.user_id} value={m.user_id}>{m.users?.name}</option>
+                              ))}
+                            </Select>
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="t-micro uppercase opacity-50">Description</label>
+                            <textarea 
+                              placeholder="Detail the requirements..." 
+                              value={newTaskDesc}
+                              onChange={(e) => setNewTaskDesc(e.target.value)}
+                              className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-3 font-body text-[13px] text-[var(--text-primary)] h-24 focus:border-[var(--signal-live)] outline-none transition-all"
+                            />
+                          </div>
+                          <Button onClick={handleCreateTask} className="h-11 font-bold bg-[var(--signal-live)] text-[var(--void)]">DEPLOY_TASK</Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] p-8 text-center">
+                        <span className="t-label italic uppercase opacity-50">Mission assignment restricted to Node Leader.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Task List */}
+                  <div className="lg:col-span-8 flex flex-col gap-4">
+                    <div className="t-section uppercase">Active Task Queue</div>
+                    <div className="flex flex-col gap-4">
+                      {tasks.length > 0 ? tasks.map((task: any) => (
+                        <div key={task.id} className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] overflow-hidden">
+                          <div className="p-5 flex justify-between items-start gap-4">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-ui text-[14px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{task.title}</span>
+                                <span className={`t-micro px-1.5 py-0.5 rounded-[2px] border font-bold ${task.status === 'verified' ? "bg-[var(--signal-live)]/10 text-[var(--signal-live)] border-[var(--signal-live)]/30" : "bg-white/5 text-[var(--text-muted)] border-[var(--border)]"}`}>
+                                  {task.status.toUpperCase()}
+                                </span>
+                              </div>
+                              <p className="font-body text-[13px] text-[var(--text-secondary)] leading-relaxed">{task.description}</p>
+                              <div className="mt-2 flex items-center gap-4 t-micro uppercase opacity-50">
+                                <span>Assigned: {task.assigned_user?.name}</span>
+                                <span>•</span>
+                                <span>By: {task.creator?.name}</span>
+                                <span>•</span>
+                                <span>{new Date(task.assigned_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            {team?.leader_id === user?.id && (
+                              <Button 
+                                onClick={() => handleVerifyTask(task.id)} 
+                                disabled={verifyingTaskId === task.id}
+                                className={`h-9 px-4 t-micro uppercase tracking-widest font-bold border ${task.status === 'verified' ? "bg-white/5 text-[var(--text-muted)] border-[var(--border)]" : "bg-[var(--signal-live)]/10 border-[var(--signal-live)]/30 text-[var(--signal-live)] hover:bg-[var(--signal-live)]/20"}`}
+                              >
+                                {verifyingTaskId === task.id ? "SCANNING..." : "VERIFY_AI"}
+                              </Button>
+                            )}
+                          </div>
+                          {task.ai_verification_rationale && (
+                            <div className="px-5 pb-5 pt-0">
+                               <div className="p-4 bg-[var(--surface-2)] border-l-2 border-[var(--signal-live)] font-body text-[12px] text-[var(--text-primary)] leading-relaxed italic relative">
+                                  <span className="absolute -top-2 left-4 px-2 bg-[var(--surface-1)] t-micro uppercase tracking-widest opacity-50">AI_VERIFICATION_REPORT</span>
+                                  &ldquo;{task.ai_verification_rationale}&rdquo;
+                               </div>
+                            </div>
+                          )}
+                        </div>
+                      )) : (
+                        <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] p-12 text-center">
+                          <span className="t-label italic uppercase opacity-50">No tasks detected in the current sector.</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -68,9 +68,17 @@ async def get_commit_diff(repo_url: str, sha: str) -> Dict[str, Any]:
         resp = await client.get(f"{BASE}/repos/{owner}/{repo}/commits/{sha}", headers=_headers(), timeout=15)
         resp.raise_for_status()
         data = resp.json()
+        
+        files = []
+        for f in data.get("files", []):
+            files.append({
+                "filename": f["filename"],
+                "patch": f.get("patch", "") # Actual code diff
+            })
+            
         return {
             "stats": data["stats"], # {total, additions, deletions}
-            "files": [f["filename"] for f in data["files"]]
+            "files": files
         }
 
 async def get_file_content(repo_url: str, file_path: str) -> str:
