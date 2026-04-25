@@ -37,7 +37,7 @@ export default function OrganizerDashboard() {
   // Create Event Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newEvent, setNewEvent] = useState({
-    event_code: "", name: "", start_time: "", end_time: "", tracks: ""
+    event_code: "", name: "", start_time: "", end_time: "", tracks: "", criteria: ""
   });
   const [creating, setCreating] = useState(false);
 
@@ -53,7 +53,7 @@ export default function OrganizerDashboard() {
       let mentorsData: any[] = [];
 
       try { teamsData = await api.get(`/teams/event/${activeEvent.id}`); } catch (e) { console.warn("Failed to load teams:", e); }
-      try { flagsData = await api.get(`/integrity/flags/event/${activeEvent.id}`); } catch (e) { console.warn("Failed to load flags:", e); }
+      try { flagsData = await api.get(`/integrity/flags/event/${activeEvent.id}`); } catch { /* expected if not event creator */ }
       try { mentorsData = await api.get(`/events/${activeEvent.id}/participants?role=mentor`); } catch (e) { console.warn("Failed to load mentors:", e); }
 
       setFlags(flagsData);
@@ -122,13 +122,31 @@ export default function OrganizerDashboard() {
         start_time: new Date(newEvent.start_time).toISOString(),
         end_time: new Date(newEvent.end_time).toISOString(),
         tracks: newEvent.tracks.split(",").map(t => t.trim()).filter(Boolean),
-        judging_rounds: []
+        judging_rounds: [
+          {
+            round: 1,
+            criteria: newEvent.criteria 
+              ? newEvent.criteria.split(",").map(c => {
+                  const parts = c.split(":");
+                  return { 
+                    name: parts[0].trim(), 
+                    weight: parts.length > 1 ? parseFloat(parts[1]) || 1.0 : 1.0 
+                  };
+                }).filter(c => c.name) 
+              : [
+                  { name: "Code Quality", weight: 1.0 }, 
+                  { name: "Complexity", weight: 1.0 }, 
+                  { name: "Completion", weight: 1.0 }, 
+                  { name: "Innovation", weight: 1.0 }
+                ]
+          }
+        ]
       };
       const created = await api.post("/events/", payload);
       setAllEvents(prev => [...prev, created]);
       await loadEventData(created);
       setShowCreateModal(false);
-      setNewEvent({ event_code: "", name: "", start_time: "", end_time: "", tracks: "" });
+      setNewEvent({ event_code: "", name: "", start_time: "", end_time: "", tracks: "", criteria: "" });
     } catch (err: any) {
       alert("Failed to create event: " + (err.message || "Unknown error"));
     } finally { setCreating(false); }
@@ -399,9 +417,15 @@ export default function OrganizerDashboard() {
                   <Input type="datetime-local" value={newEvent.end_time} onChange={e => setNewEvent(p => ({...p, end_time: e.target.value}))} className="h-12 bg-[var(--surface-2)] border-[var(--border)]" />
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="t-micro uppercase opacity-80 ml-1 font-bold tracking-widest">Tracks (comma-separated)</label>
-                <Input placeholder="e.g. AI/ML, Web3, HealthTech" value={newEvent.tracks} onChange={e => setNewEvent(p => ({...p, tracks: e.target.value}))} className="h-12 bg-[var(--surface-2)] border-[var(--border)]" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="t-micro uppercase opacity-80 ml-1 font-bold tracking-widest">Tracks (comma-separated)</label>
+                  <Input placeholder="e.g. AI/ML, Web3, HealthTech" value={newEvent.tracks} onChange={e => setNewEvent(p => ({...p, tracks: e.target.value}))} className="h-12 bg-[var(--surface-2)] border-[var(--border)]" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="t-micro uppercase opacity-80 ml-1 font-bold tracking-widest">Rubric (comma-separated)</label>
+                  <Input placeholder="e.g. Innovation:2.0, Design:1, Code Quality" value={newEvent.criteria} onChange={e => setNewEvent(p => ({...p, criteria: e.target.value}))} className="h-12 bg-[var(--surface-2)] border-[var(--border)]" />
+                </div>
               </div>
               <Button onClick={handleCreateEvent} disabled={creating || !newEvent.event_code || !newEvent.name || !newEvent.start_time || !newEvent.end_time} className="w-full h-14 mt-2 bg-[var(--signal-live)] text-[var(--void)] font-bold t-section uppercase tracking-widest shadow-[0_0_20px_rgba(0,255,194,0.3)]">
                 {creating ? "DEPLOYING..." : "DEPLOY_EVENT"}

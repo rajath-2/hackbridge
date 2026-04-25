@@ -19,6 +19,7 @@ export default function JudgeDashboard() {
   const [teams, setTeams] = useState<any[]>([])
   const [selectedTeam, setSelectedTeam] = useState<any>(null)
   const [aiAnalysis, setAiAnalysis] = useState<any>(null)
+  const [editableScores, setEditableScores] = useState<any>({})
   const [hasJoinedEvent, setHasJoinedEvent] = useState(false)
   const [eventCode, setEventCode] = useState("")
   const [joining, setJoining] = useState(false)
@@ -31,7 +32,8 @@ export default function JudgeDashboard() {
   const [verifyingSuggestion, setVerifyingSuggestion] = useState(false)
   const [verificationResult, setVerificationResult] = useState<any>(null)
 
-  const liveNotifications = useNotifications(event?.id, user?.id, "judge") || []
+
+
 
   const loadEventData = async (activeEvent: any) => {
     if (!activeEvent) return;
@@ -134,9 +136,15 @@ export default function JudgeDashboard() {
     try {
       const suggestion = await api.post(`/scores/ai-suggest/${teamId}?round=1`, {})
       setAiAnalysis(suggestion)
+      if (suggestion?.rubric_scores) {
+        setEditableScores(suggestion.rubric_scores)
+      } else {
+        setEditableScores({})
+      }
     } catch (err) {
       console.error("AI suggestion failed:", err)
       setAiAnalysis(null)
+      setEditableScores({})
     }
   }
 
@@ -173,7 +181,7 @@ export default function JudgeDashboard() {
         team_id: selectedTeam.id,
         event_id: event.id,
         round: 1,
-        rubric_scores: aiAnalysis?.scores || { "Code Quality": 8, "Complexity": 7, "Completion": 8 },
+        rubric_scores: Object.keys(editableScores).length > 0 ? editableScores : { "Code Quality": 8, "Complexity": 7, "Completion": 8 },
         notes: `Scores submitted via Judge Dashboard. Suggestion verified: ${judgeSuggestion || 'None'}`
       })
       alert("Scores submitted successfully!")
@@ -420,9 +428,14 @@ export default function JudgeDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                      {aiAnalysis?.scores ? (
-                        Object.entries(aiAnalysis.scores).map(([crit, val]: [string, any]) => (
-                          <ScoreBar key={crit} criterion={crit} score={val} />
+                      {Object.keys(editableScores).length > 0 ? (
+                        Object.entries(editableScores).map(([crit, val]: [string, any]) => (
+                          <ScoreBar 
+                            key={crit} 
+                            criterion={crit} 
+                            score={val} 
+                            onChange={(newScore) => setEditableScores((prev: any) => ({ ...prev, [crit]: newScore }))}
+                          />
                         ))
                       ) : (
                         <>
@@ -436,7 +449,7 @@ export default function JudgeDashboard() {
 
                     <div className="p-4 bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] font-body text-[13px] text-[var(--text-primary)] leading-relaxed italic relative">
                        <span className="absolute -top-2 left-4 px-2 bg-[var(--surface-1)] t-micro uppercase tracking-widest opacity-50">AI_COMMENTARY</span>
-                       &ldquo;{aiAnalysis?.evaluation || "Scanning team repository... Analyzing code complexity and track alignment. Please hold."}&rdquo;
+                       &ldquo;{aiAnalysis?.rationale || "Scanning team repository... Analyzing code complexity and track alignment. Please hold."}&rdquo;
                     </div>
 
                     {/* Suggestion Verification Section */}
