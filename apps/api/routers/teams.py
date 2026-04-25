@@ -102,6 +102,20 @@ async def ingest_scan(team_id: str, payload: LocalScanPayload):
     
     return {"status": "received"}
 
+@router.get("/event/{event_id}")
+async def get_teams_by_event(event_id: str, user=Depends(get_current_user)):
+    """Get all teams for an event. Organizers can only see their own events."""
+    sb = get_supabase()
+    
+    # Check access for organizers
+    if user["role"] == "organizer":
+        event_resp = sb.table("events").select("created_by").eq("id", event_id).single().execute()
+        if not event_resp.data or event_resp.data["created_by"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    res = sb.table("teams").select("*").eq("event_id", event_id).execute()
+    return res.data
+
 @router.get("/{team_id}/status")
 async def get_team_status(team_id: str, user=Depends(get_current_user)):
     sb = get_supabase()
@@ -132,7 +146,7 @@ async def get_team_status_cli(team_id: str, team_code: str):
     }
 
 @router.post("/{team_id}/mentor-ping")
-async def mentor_ping(team_id: str, message: str = Body(...), user=Depends(get_current_user)):
+async def mentor_ping(team_id: str, payload: dict = Body(...), user=Depends(get_current_user)):
     sb = get_supabase()
     team = sb.table("teams").select("event_id, mentor_id").eq("id", team_id).single().execute()
     if not team.data["mentor_id"]:
@@ -145,7 +159,7 @@ async def mentor_ping(team_id: str, message: str = Body(...), user=Depends(get_c
         "sender_id": user["id"],
         "recipient_id": team.data["mentor_id"],
         "team_id": team_id,
-        "message": message,
+        "message": payload.get("message", "Ping!"),
         "type": "mentor_ping"
     }).execute()
     
@@ -173,6 +187,15 @@ async def mentor_ping_cli(team_id: str, payload: dict = Body(...)):
     }).execute()
     
     return {"status": "sent"}
+
+@router.get("/mentor/assigned")
+async def get_mentor_assigned_teams(user=Depends(get_current_user)):
+    """Get all teams assigned to the current mentor."""
+    if user["role"] != "mentor":
+        raise HTTPException(status_code=403, detail="Only mentors can access this endpoint")
+    sb = get_supabase()
+    res = sb.table("teams").select("*").eq("mentor_id", user["id"]).execute()
+    return res.data
 
 @router.get("/me")
 async def get_my_team(user=Depends(get_current_user)):

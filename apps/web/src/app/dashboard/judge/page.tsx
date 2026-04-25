@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { NavBar } from "@/components/dashboard/NavBar"
-import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ResumeUpload } from "@/components/ui/ResumeUpload"
@@ -10,7 +10,7 @@ import { ScoreBar } from "@/components/ui/ScoreBar"
 import { Select } from "@/components/ui/select"
 import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
-import { useNotifications } from "@/hooks/useNotifications"
+
 import { LayoutGrid, Users, History, FileBadge } from "lucide-react"
 
 export default function JudgeDashboard() {
@@ -276,36 +276,27 @@ export default function JudgeDashboard() {
         {/* 5.4 Sidebar */}
         <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] hidden lg:flex flex-col sticky top-[32px] h-[calc(100vh-32px)]">
           <div className="py-5 px-6 t-section uppercase">Judging Station</div>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-primary)] border-[var(--signal-ping)] bg-[var(--signal-ping)]/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-primary)] border-[var(--signal-ping)] bg-[var(--signal-ping)]/5 font-ui text-[12px] uppercase tracking-wider">
             <LayoutGrid size={14} />
             Scoring Matrix
-          </button>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          </Button>
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <Users size={14} />
             Team Roster
-          </button>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          </Button>
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <History size={14} />
             Historical Scores
-          </button>
+          </Button>
           
           <div className="mt-8 py-2 px-6 t-micro uppercase opacity-50">Verification</div>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <FileBadge size={14} />
             Credentials
-          </button>
+          </Button>
 
-          <div className="mt-8 mb-4 px-2">
-            <NotificationFeed
-              notifications={(liveNotifications || []).map(n => ({
-                id: n.id,
-                type: n.type.replace('_', ' ').toUpperCase(),
-                message: n.message,
-                meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-              }))}
-            />
-          </div>
+
+
 
           <div className="mt-auto p-6 bg-[var(--surface-1)] border-t border-[var(--border)]">
              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">

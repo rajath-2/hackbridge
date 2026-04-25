@@ -18,14 +18,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     
-    const baseStyles = "inline-flex items-center justify-center gap-1.5 font-medium rounded-[7px] transition-all duration-150 cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hb-indigo)] disabled:pointer-events-none disabled:opacity-50"
+    const baseStyles = "inline-flex items-center justify-center gap-1.5 font-bold rounded-[4px] transition-all duration-200 cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--signal-info)] disabled:pointer-events-none disabled:opacity-50 uppercase tracking-wider"
     
     const variants = {
-      primary: "bg-[var(--hb-indigo)] text-white hover:bg-[var(--hb-indigo-bright)] border-transparent",
-      secondary: "bg-[var(--hb-indigo-dim)] text-[#A5ADEE] border-[var(--hb-indigo-glow)] hover:bg-[rgba(79,98,216,0.18)]",
-      ghost: "bg-transparent text-[var(--hb-muted)] border-[var(--hb-border2)] hover:bg-[var(--hb-surface3)] hover:text-[var(--hb-text)]",
-      danger: "bg-[var(--hb-red-dim)] text-[#F9A0A0] border-[rgba(240,76,76,0.28)] hover:bg-[rgba(240,76,76,0.18)]",
-      "mentor-request": "w-full bg-[var(--hb-amber-dim)] border-[rgba(232,160,32,0.28)] text-[#F0C060] hover:bg-[rgba(232,160,32,0.2)]",
+      primary: "bg-[var(--signal-live)] text-[var(--void)] border-transparent hover:brightness-110 active:scale-[0.98] shadow-[0_4px_14px_rgba(0,255,194,0.3)]",
+      secondary: "bg-[var(--surface-2)] text-[var(--text-primary)] border-[var(--border)] hover:border-[var(--signal-live)] hover:bg-[var(--surface-2)]/50",
+      ghost: "bg-transparent text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/10",
+      danger: "bg-[var(--signal-alert)] text-[var(--void)] border-transparent hover:brightness-110 active:scale-[0.98] shadow-[0_4px_14px_rgba(255,45,85,0.3)]",
+      "mentor-request": "w-full bg-[var(--signal-ping)]/20 border-[var(--signal-ping)]/50 text-[var(--signal-ping)] hover:bg-[var(--signal-ping)]/30",
     }
     
     const sizes = {

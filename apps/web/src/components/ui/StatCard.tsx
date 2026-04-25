@@ -39,13 +39,13 @@ export function StatCard({ label, value, sub, variant = "default", className, ..
       )} 
       {...props}
     >
-      <div className="t-micro uppercase opacity-50 mb-2 tracking-[0.2em] group-hover:opacity-100 transition-opacity">
+      <div className="t-micro uppercase opacity-80 mb-2 tracking-[0.2em] group-hover:opacity-100 transition-opacity">
         {label}
       </div>
       <div className={cn("t-stat mb-1 tracking-tighter", variantColors[variant])}>
         {value}
       </div>
-      <div className="t-micro uppercase opacity-30 mt-2 font-bold">
+      <div className="t-micro uppercase opacity-60 mt-2 font-bold">
         {sub}
       </div>
     </div>

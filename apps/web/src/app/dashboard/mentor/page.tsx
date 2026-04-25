@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { NavBar } from "@/components/dashboard/NavBar"
-import { NotificationFeed } from "@/components/dashboard/NotificationFeed"
+
 import { StatCard } from "@/components/ui/StatCard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ResumeUpload } from "@/components/ui/ResumeUpload"
 import { api } from "@/lib/api"
 import { createClient } from "@/lib/supabase/client"
-import { useNotifications } from "@/hooks/useNotifications"
+
 import { LayoutDashboard, Users, Activity, Bell, FileText } from "lucide-react"
 
 export default function MentorDashboard() {
@@ -27,11 +27,7 @@ export default function MentorDashboard() {
   const [commits, setCommits] = useState<any[]>([])
   const [mentorProfile, setMentorProfile] = useState<any>(null)
 
-  const [notifications, setNotifs] = useState<any[]>([])
-  const hookNotifs = useNotifications(event?.id, user?.id, "mentor")
-  useEffect(() => {
-    if (Array.isArray(hookNotifs)) setNotifs(hookNotifs)
-  }, [hookNotifs])
+  const [pings, setPings] = useState<any[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -80,6 +76,22 @@ export default function MentorDashboard() {
       const commitsData = await api.get("/commits/mentor")
       setCommits(commitsData || [])
     } catch { }
+
+    // Fetch pings for this mentor
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        const { data: pingData } = await supabase
+          .from("notifications")
+          .select("*, teams(name), sender:sender_id(name, email)")
+          .eq("recipient_id", authUser.id)
+          .eq("type", "mentor_ping")
+          .order("created_at", { ascending: false })
+          .limit(20)
+        setPings(pingData || [])
+      }
+    } catch { }
   }
 
   const handleJoinEvent = async () => {
@@ -101,14 +113,22 @@ export default function MentorDashboard() {
         return
       }
 
-      await supabase
+      const { error: participantErr } = await supabase
         .from("event_participants")
         .upsert({
           event_id: eventData.id,
           user_id: user.id,
+          role: "mentor",
         }, { onConflict: "event_id, user_id" })
 
-      await supabase
+      if (participantErr) {
+        console.error("event_participants upsert error:", participantErr)
+        setJoinError("Failed to join event: " + (participantErr.message || "Unknown error"))
+        setJoining(false)
+        return
+      }
+
+      const { error: profileErr } = await supabase
         .from("mentor_profiles")
         .upsert({
           user_id: user.id,
@@ -116,6 +136,11 @@ export default function MentorDashboard() {
           expertise_tags: [selectedDomain],
           is_available: true,
         }, { onConflict: "user_id" })
+
+      if (profileErr) {
+        console.error("mentor_profiles upsert error:", profileErr)
+        // Non-fatal — the mentor can still view the event
+      }
 
       setEvent(eventData)
       setHasJoinedEvent(true)
@@ -198,7 +223,8 @@ export default function MentorDashboard() {
                     <Button
                       onClick={handleJoinEvent}
                       disabled={joining || !eventCode.trim() || !selectedDomain}
-                      className="h-14 font-bold bg-[var(--signal-alert)] text-[var(--void)] text-[14px] uppercase tracking-[0.1em] mt-2"
+                      variant="danger"
+                      className="h-14 font-bold text-[14px] mt-2"
                     >
                       {joining ? "VERIFYING..." : "INITIALIZE_SESSION"}
                     </Button>
@@ -234,7 +260,7 @@ export default function MentorDashboard() {
     )
   }
 
-  const pings = notifications.filter(n => n.type === "mentor_ping")
+
   const tickerContent = [
     { type: "SYNC", id: "0x1", team: "SYSTEM", msg: "Specialist channel established" },
     { type: "COMMIT", id: commits[0]?.id?.slice(0, 6) || "----", team: commits[0]?.teams?.name || "SYS", msg: commits[0]?.message || "No activity detected" },
@@ -266,40 +292,31 @@ export default function MentorDashboard() {
         {/* 5.4 Sidebar */}
         <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] hidden lg:flex flex-col sticky top-[32px] h-[calc(100vh-32px)]">
           <div className="py-5 px-6 t-section uppercase">Specialist Control</div>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-primary)] border-[var(--signal-alert)] bg-[var(--signal-alert)]/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-primary)] border-[var(--signal-alert)] bg-[var(--signal-alert)]/5 font-ui text-[12px] uppercase tracking-wider">
             <LayoutDashboard size={14} />
             Command Overview
-          </button>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          </Button>
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <Users size={14} />
             Assigned Nodes
-          </button>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          </Button>
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <Activity size={14} />
             Activity Feed
-          </button>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          </Button>
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <Bell size={14} />
             Incoming Pings
-          </button>
+          </Button>
           
           <div className="mt-8 py-2 px-6 t-micro uppercase opacity-50">Support</div>
-          <button className="px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
             <FileText size={14} />
             Global Logs
-          </button>
+          </Button>
 
-          <div className="mt-8 mb-4 px-2">
-            <NotificationFeed
-              notifications={notifications.map(n => ({
-                id: n.id,
-                type: n.type.replace('_', ' ').toUpperCase(),
-                message: n.message,
-                meta: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                variant: n.type === 'broadcast' ? 'broadcast' : (n.type === 'mentor_ping' ? 'mentor-ping' : 'ai')
-              }))}
-            />
-          </div>
+
+
 
           <div className="mt-auto p-6 bg-[var(--surface-1)] border-t border-[var(--border)]">
              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
@@ -365,13 +382,17 @@ export default function MentorDashboard() {
                   {pings.length > 0 ? pings.map(ping => (
                     <div key={ping.id} className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-3 group hover:border-[var(--border-hot)] transition-all">
                        <div className="flex justify-between items-start">
-                          <span className="t-micro px-1.5 py-0.5 bg-[var(--signal-alert)]/10 text-[var(--signal-alert)] border border-[var(--signal-alert)]/30 rounded-[2px] uppercase">Mentor Ping</span>
-                          <span className="t-micro uppercase opacity-50">{new Date(ping.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="t-micro px-1.5 py-0.5 bg-[var(--signal-ping)]/10 text-[var(--signal-ping)] border border-[var(--signal-ping)]/30 rounded-[2px] uppercase font-bold">Mentor Ping</span>
+                          <span className="t-micro uppercase opacity-60">{new Date(ping.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                          <span className="font-ui text-[12px] text-[var(--signal-info)] font-bold uppercase">{ping.teams?.name || "Unknown Team"}</span>
+                          <span className="t-micro opacity-40">·</span>
+                          <span className="t-micro text-[var(--text-secondary)] uppercase">{ping.sender?.name || ping.sender?.email || "Unknown"}</span>
                        </div>
                        <div className="font-body text-[13px] text-[var(--text-primary)] italic">
                           &ldquo;{ping.message}&rdquo;
                        </div>
-                       <Button className="w-full text-[11px] h-8 bg-white/5 border border-[var(--border)] text-[var(--text-primary)] hover:bg-white/10 uppercase">Establish Uplink</Button>
                     </div>
                   )) : (
                     <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] p-10 text-center">

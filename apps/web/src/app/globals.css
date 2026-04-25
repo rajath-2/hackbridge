@@ -16,9 +16,9 @@
     --border-hot:     #2A3F50;   /* hover/active borders */
 
     /* Typography Colors */
-    --text-primary:   #E8EDF2;
-    --text-secondary: #5A7A8A;
-    --text-muted:     #2E4A5A;
+    --text-primary:   #FFFFFF;
+    --text-secondary: #CBD5E1;   /* Lighter gray (slate-300) */
+    --text-muted:     #94A3B8;   /* Lighter gray (slate-400) */
     --text-code:      #7FBFCF;
 
     /* Accent System — one color per signal type */
@@ -37,7 +37,7 @@
     /* 3. Typography */
     --font-display: 'IBM Plex Mono', monospace;
     --font-ui:      'DM Mono', monospace;
-    --font-body:    'Space Mono', monospace;
+    --font-body:    var(--font-sans);
 
     /* 7. Spacing System */
     --space-1:  4px;
@@ -58,10 +58,11 @@
   body {
     background-color: var(--void);
     color: var(--text-primary);
-    font-family: var(--font-body);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     margin: 0;
     overflow-x: hidden;
+    line-height: 1.6;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -91,13 +92,13 @@
   }
 
   /* Typography utilities based on spec */
-  .t-display { font-size: 48px; font-weight: 700; font-family: var(--font-display); line-height: 1; letter-spacing: -0.02em; }
-  .t-stat { font-size: 56px; font-weight: 700; font-family: var(--font-display); line-height: 1; }
-  .t-section { font-size: 10px; font-weight: 500; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-secondary); }
-  .t-label { font-size: 12px; font-weight: 400; font-family: var(--font-ui); color: var(--text-secondary); }
-  .t-body { font-size: 13px; font-weight: 400; font-family: var(--font-body); color: var(--text-primary); }
-  .t-micro { font-size: 10px; font-weight: 400; font-family: var(--font-ui); color: var(--text-muted); }
-  .t-code { font-size: 12px; font-weight: 400; font-family: var(--font-display); color: var(--text-code); }
+  .t-display { font-size: 48px; font-weight: 800; font-family: var(--font-display); line-height: 1.1; letter-spacing: -0.02em; }
+  .t-stat { font-size: 56px; font-weight: 800; font-family: var(--font-display); line-height: 1; }
+  .t-section { font-size: 11px; font-weight: 800; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-secondary); }
+  .t-label { font-size: 13px; font-weight: 600; font-family: var(--font-ui); color: var(--text-secondary); }
+  .t-body { font-size: 14px; font-weight: 500; font-family: var(--font-sans); color: var(--text-primary); }
+  .t-micro { font-size: 11px; font-weight: 600; font-family: var(--font-ui); color: var(--text-muted); }
+  .t-code { font-size: 13px; font-weight: 500; font-family: var(--font-display); color: var(--text-code); }
 }
 
 @keyframes ticker-scroll {

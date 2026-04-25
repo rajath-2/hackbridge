@@ -7,11 +7,12 @@ import { Button } from "../ui/button"
 
 export interface NavBarProps {
   eventCode?: string;
+  eventName?: string;
   eventDropdown?: React.ReactNode;
   role: "organizer" | "participant" | "mentor" | "judge";
 }
 
-export function NavBar({ eventCode, eventDropdown, role }: NavBarProps) {
+export function NavBar({ eventCode, eventName, eventDropdown, role }: NavBarProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -22,11 +23,17 @@ export function NavBar({ eventCode, eventDropdown, role }: NavBarProps) {
 
   return (
     <nav className="bg-[var(--surface-1)] border-b border-[var(--border)] px-6 h-[64px] flex items-center justify-between relative z-20 w-full shrink-0">
-      <div className="flex items-center gap-10 h-full">
-        <div className="flex items-center gap-1 cursor-pointer" onClick={() => router.push("/dashboard")}>
+      <div className="flex items-center gap-6 h-full">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push("/")}>
           <span className="font-display text-[18px] font-bold tracking-tight text-[var(--text-primary)] uppercase">
             HACK<span className="text-[var(--signal-live)]">BRIDGE</span>
           </span>
+          {eventName && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px]">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--signal-live)] dot-live"></div>
+              <span className="font-ui text-[10px] text-[var(--text-primary)] uppercase tracking-widest font-bold truncate max-w-[180px]">{eventName}</span>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-8 h-full">
@@ -56,14 +63,15 @@ export function NavBar({ eventCode, eventDropdown, role }: NavBarProps) {
 
       <div className="flex items-center gap-4">
         <Button 
-          variant="ghost" 
+          variant="danger" 
           size="sm" 
           onClick={handleSignOut}
-          className="font-ui text-[10px] text-[var(--text-muted)] hover:text-[var(--signal-alert)] uppercase tracking-[0.15em] border-none bg-transparent h-auto p-0"
+          className="h-[36px] px-4 font-ui text-[11px] font-bold tracking-widest"
         >
           TERMINATE_SESSION
         </Button>
       </div>
     </nav>
   )
-}
+}
+

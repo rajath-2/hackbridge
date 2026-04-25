@@ -20,8 +20,8 @@ export function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-bold tracking-tight text-primary">
-              HackBridge
+            <Link href="/" className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
+              HACK<span className="text-[var(--signal-live)]">BRIDGE</span>
             </Link>
             <div className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
@@ -38,9 +38,9 @@ export function Navbar() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="danger" size="sm" className="gap-2 h-[36px] px-4 font-ui text-[11px] font-bold tracking-widest">
               <LogOut className="h-4 w-4" />
-              Sign Out
+              SIGN OUT
             </Button>
           </div>
         </div>

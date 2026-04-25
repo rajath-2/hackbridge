@@ -13,7 +13,8 @@ import { createClient } from "@/lib/supabase/client"
 import { useNotifications } from "@/hooks/useNotifications"
 import { Select } from "@/components/ui/select"
 import { StatCard } from "@/components/ui/StatCard"
-import { Grid2X2, RefreshCw, Radio } from "lucide-react"
+import { Grid2X2, RefreshCw, Send } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function ParticipantDashboard() {
   const [team, setTeam] = useState<any>(null)
@@ -24,6 +25,9 @@ export default function ParticipantDashboard() {
   const [collabData, setCollabData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<"overview" | "sync">("overview")
   const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null)
+  const [pingMsg, setPingMsg] = useState("")
+  const [pingSending, setPingSending] = useState(false)
+  const [pingSuccess, setPingSuccess] = useState(false)
 
   // Onboarding states
   const [events, setEvents] = useState<any[]>([])
@@ -179,9 +183,19 @@ export default function ParticipantDashboard() {
     }
   };
 
-  const handleBroadcast = async () => {
-    // Participant broadcast functionality? Maybe just a ping.
-    alert("Broadcast functionality reserved for Organizers.")
+  const handleMentorPing = async () => {
+    if (!team || !pingMsg.trim()) return
+    setPingSending(true)
+    try {
+      await api.post(`/teams/${team.id}/mentor-ping`, { message: pingMsg.trim() })
+      setPingMsg("")
+      setPingSuccess(true)
+      setTimeout(() => setPingSuccess(false), 3000)
+    } catch (err: any) {
+      alert(err.message || "Failed to ping mentor. Is a mentor assigned?")
+    } finally {
+      setPingSending(false)
+    }
   }
 
   if (loading) return (
@@ -192,61 +206,82 @@ export default function ParticipantDashboard() {
 
   if (!team) {
     return (
-      <div className="min-h-screen flex flex-col bg-[var(--void)] font-body">
+      <div className="min-h-screen flex flex-col bg-[var(--void)] font-body relative overflow-hidden selection:bg-[var(--signal-live)] selection:text-[var(--void)]">
+        {/* Grid Overlay */}
+        <div className="absolute inset-0 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-150 mix-blend-overlay"></div>
+        <div className="absolute inset-0 pointer-events-none opacity-[0.15]" style={{ backgroundImage: "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)", backgroundSize: "40px 40px" }}></div>
+
+        {/* Animated Background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--signal-live)]/10 blur-[150px] rounded-full"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--signal-info)]/10 blur-[150px] rounded-full"></div>
+        </div>
+
         <NavBar role="participant" />
-        <main className="flex-1 flex flex-col items-center justify-center p-6">
-          <div className="w-full max-w-[900px] bg-[var(--surface-1)] border border-[var(--border-hot)] rounded-[4px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <div className="bg-[var(--surface-2)] border-b border-[var(--border-hot)] px-6 py-4 flex flex-col">
-              <span className="t-section uppercase">Deployment Sequence</span>
-              <h2 className="t-display text-[24px] uppercase text-[var(--text-primary)]">NODE_AUTHENTICATION_REQUIRED</h2>
+        <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-[900px] bg-[var(--surface-1)]/80 backdrop-blur-xl border border-[var(--border-hot)] rounded-lg overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.4)]"
+          >
+            <div className="bg-[var(--surface-2)]/50 border-b border-[var(--border-hot)] px-8 py-6 flex flex-col">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-2 h-2 rounded-full bg-[var(--signal-live)] dot-live" />
+                <span className="t-section uppercase text-[var(--signal-live)] tracking-[0.2em] font-bold">Deployment Sequence Active</span>
+              </div>
+              <h2 className="t-display text-[28px] uppercase text-[var(--text-primary)] tracking-tight">NODE_AUTHENTICATION_REQUIRED</h2>
             </div>
 
-            <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-16">
               <div className="flex flex-col">
-                <div className="t-section border-b border-[var(--border)] pb-2 mb-6">
+                <div className="t-section border-b border-[var(--border)] pb-3 mb-8 font-bold uppercase tracking-widest text-[var(--text-primary)]">
                   OPTION_01: JOIN_EXISTING_NODE
                 </div>
-                <p className="t-body text-[var(--text-secondary)] mb-6 flex-1">
-                  Enter the unique node identifier (team code) to sync with an established squad.
+                <p className="t-body text-[var(--text-secondary)] mb-10 flex-1 leading-relaxed">
+                  Enter the unique node identifier (team code) to sync with an established squad. 
+                  This will link your identity to the group's collective repository.
                 </p>
-                <div className="flex flex-col gap-4">
-                  <Input
-                    placeholder="e.g. BYT-X4K"
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] font-mono tracking-wider"
-                  />
-                  <Button onClick={handleJoinTeam} className="h-11 font-bold bg-[var(--signal-live)] text-[var(--void)]">INITIATE_SYNC</Button>
+                <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="t-micro uppercase opacity-70 ml-1 font-bold tracking-widest">Node_Identifier</label>
+                    <Input
+                      placeholder="e.g. BYT-X4K"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      className="h-12 bg-[var(--surface-2)]/50 border-[var(--border)] text-[var(--text-primary)] font-mono tracking-widest text-[16px] px-4"
+                    />
+                  </div>
+                  <Button onClick={handleJoinTeam} className="h-12 font-bold bg-[var(--signal-live)] text-[var(--void)] shadow-[0_0_15px_rgba(0,255,194,0.3)]">INITIATE_SYNC</Button>
                 </div>
               </div>
 
-              <div className="flex flex-col border-l border-[var(--border)] pl-10">
-                <div className="t-section border-b border-[var(--border)] pb-2 mb-6">
+              <div className="flex flex-col md:border-l border-[var(--border)] md:pl-16">
+                <div className="t-section border-b border-[var(--border)] pb-3 mb-8 font-bold uppercase tracking-widest text-[var(--text-primary)]">
                   OPTION_02: INITIALIZE_NEW_NODE
                 </div>
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="t-micro uppercase">Node Designation</label>
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="t-micro uppercase opacity-70 ml-1 font-bold tracking-widest">Node_Designation</label>
                     <Input
-                      placeholder="Team Name"
+                      placeholder="ENTER_SQUAD_NAME"
                       value={newTeamName}
                       onChange={(e) => setNewTeamName(e.target.value)}
-                      className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]"
+                      className="h-12 bg-[var(--surface-2)]/50 border-[var(--border)] text-[var(--text-primary)] px-4"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="t-micro uppercase">Target Sector</label>
-                    <Select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]">
-                      <option value="">Select Event...</option>
+                  <div className="flex flex-col gap-2">
+                    <label className="t-micro uppercase opacity-70 ml-1 font-bold tracking-widest">Target_Sector</label>
+                    <Select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="h-12 bg-[var(--surface-2)]/50 border-[var(--border)] text-[var(--text-primary)] px-4">
+                      <option value="">Select Event Protocol...</option>
                       {events.map(e => (
                         <option key={e.id} value={e.id}>{e.name} ({e.event_code})</option>
                       ))}
                     </Select>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="t-micro uppercase">Operational Track</label>
-                    <Select value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)} className="h-11 bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)]">
-                      <option value="">Select Track...</option>
+                  <div className="flex flex-col gap-2">
+                    <label className="t-micro uppercase opacity-70 ml-1 font-bold tracking-widest">Operational_Track</label>
+                    <Select value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)} className="h-12 bg-[var(--surface-2)]/50 border-[var(--border)] text-[var(--text-primary)] px-4">
+                      <option value="">Select Track Sector...</option>
                       {(() => {
                         const selectedEvent = events.find(e => e.id === selectedEventId)
                         const tracks = selectedEvent?.tracks || []
@@ -256,11 +291,11 @@ export default function ParticipantDashboard() {
                       })()}
                     </Select>
                   </div>
-                  <Button onClick={handleCreateTeam} className="h-11 font-bold bg-[var(--signal-live)] text-[var(--void)]">BOOT_NEW_NODE</Button>
+                  <Button onClick={handleCreateTeam} className="h-12 font-bold bg-[var(--signal-live)] text-[var(--void)] mt-2 shadow-[0_0_15px_rgba(0,255,194,0.3)]">BOOT_NEW_NODE</Button>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </main>
       </div>
     )
@@ -305,23 +340,25 @@ export default function ParticipantDashboard() {
         {/* 5.4 Sidebar */}
         <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] flex flex-col sticky top-[32px] h-[calc(100vh-32px)]">
           <div className="py-5 px-6 t-section">Navigation</div>
-          <button 
+          <Button 
+            variant="ghost"
             onClick={() => setActiveTab("overview")}
-            className={`px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'overview' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
+            className={`px-6 justify-start rounded-none h-[40px] border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'overview' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
           >
             <Grid2X2 size={14} />
             Overview
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="ghost"
             onClick={() => setActiveTab("sync")}
-            className={`px-6 py-2 flex items-center gap-3 h-[40px] transition-all border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'sync' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
+            className={`px-6 justify-start rounded-none h-[40px] border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'sync' ? "text-[var(--text-primary)] border-[var(--signal-live)] bg-[var(--signal-live)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
           >
             <RefreshCw size={14} />
             Team Sync
             {driftCount > 0 && (
               <span className="ml-auto font-ui text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[var(--signal-alert)]/15 text-[var(--signal-alert)] border border-[var(--signal-alert)]/40">{driftCount}</span>
             )}
-          </button>
+          </Button>
 
           <div className="mt-auto p-6 border-t border-[var(--border)] bg-[var(--surface-1)]">
              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-4 flex flex-col gap-2">
@@ -331,13 +368,23 @@ export default function ParticipantDashboard() {
                   <span className="font-ui text-[11px] text-[var(--text-primary)] font-bold">{team.team_code}</span>
                 </div>
              </div>
-             <button 
-                onClick={handleBroadcast}
-                className="w-full mt-4 bg-[var(--signal-live)] text-[var(--void)] font-display text-[12px] font-bold uppercase tracking-[0.08em] h-[36px] rounded-[4px] hover:shadow-[0_0_15px_rgba(0,255,194,0.4)] transition-all flex items-center justify-center gap-2"
-             >
-               <Radio size={14} />
-               PING_ADMIN
-             </button>
+             <div className="flex flex-col gap-2">
+               <Input
+                 placeholder="Message for mentor..."
+                 value={pingMsg}
+                 onChange={(e) => setPingMsg(e.target.value)}
+                 onKeyDown={(e) => e.key === 'Enter' && handleMentorPing()}
+                 className="h-[36px] bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-primary)] text-[12px] focus:border-[var(--signal-ping)]"
+               />
+               <Button 
+                  onClick={handleMentorPing}
+                  disabled={pingSending || !pingMsg.trim()}
+                  className={`w-full h-[36px] font-bold uppercase tracking-widest text-[11px] ${pingSuccess ? 'bg-[var(--signal-clean)] text-[var(--void)]' : 'bg-[var(--signal-ping)] text-[var(--void)]'}`}
+               >
+                 <Send size={14} />
+                 {pingSending ? "SENDING..." : pingSuccess ? "PING_SENT ✓" : "PING_MENTOR"}
+               </Button>
+             </div>
           </div>
         </aside>
 

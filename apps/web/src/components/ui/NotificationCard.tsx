@@ -33,7 +33,7 @@ export function NotificationCard({ type, message, meta, variant = "broadcast", c
         >
           {type}
         </span>
-        <span className="t-micro uppercase opacity-50">{meta}</span>
+        <span className="t-micro uppercase opacity-80">{meta}</span>
       </div>
       <div className="font-body text-[var(--text-primary)] text-[12px] leading-relaxed">
         {message}
