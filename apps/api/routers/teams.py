@@ -232,7 +232,7 @@ async def get_teams_by_event(event_id: str, user=Depends(get_current_user)):
         if not event_resp.data or event_resp.data["created_by"] != user["id"]:
             raise HTTPException(status_code=403, detail="You do not have access to this event's teams")
             
-    res = sb.table("teams").select("*").eq("event_id", event_id).execute()
+    res = sb.table("teams").select("*, team_members(users(name, email))").eq("event_id", event_id).execute()
     return res.data
 @router.post("/{team_id}/cli/groq-relay")
 async def groq_relay_cli(team_id: str, payload: GroqRelayPayload):

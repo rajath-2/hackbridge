@@ -8,20 +8,16 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 
 @router.post("/")
 async def submit_score(score: ScoreSubmit, user=Depends(get_current_user)):
-    if user["role"] not in ["judge", "organizer"]:
-        raise HTTPException(status_code=403, detail="Unauthorized role")
-    
     sb = get_supabase()
     # Check access
-    if user["role"] == "organizer":
-        event_resp = sb.table("events").select("created_by").eq("id", score.event_id).single().execute()
-        if not event_resp.data or event_resp.data["created_by"] != user["id"]:
-            raise HTTPException(status_code=403, detail="Access denied")
-    else:
-        # Judge check
-        part_resp = sb.table("event_participants").select("*").eq("event_id", score.event_id).eq("user_id", user["id"]).execute()
-        if not part_resp.data:
-            raise HTTPException(status_code=403, detail="Access denied")
+    event_resp = sb.table("events").select("created_by").eq("id", score.event_id).single().execute()
+    is_organizer = event_resp.data and event_resp.data["created_by"] == user["id"]
+    
+    part_resp = sb.table("judge_profiles").select("*").eq("event_id", score.event_id).eq("user_id", user["id"]).execute()
+    is_judge = len(part_resp.data) > 0
+    
+    if not is_organizer and not is_judge:
+        raise HTTPException(status_code=403, detail="Unauthorized role: Must be an organizer or judge for this event")
 
     res = sb.table("scores").upsert({
         "judge_id": user["id"],
@@ -44,13 +40,12 @@ async def get_ai_suggested_score(team_id: str, round: int = Query(...), user=Dep
         
     event_id = team.data["event_id"]
     # Check access
-    if user["role"] == "organizer":
-        if team.data["events"]["created_by"] != user["id"]:
-            raise HTTPException(status_code=403, detail="Access denied")
-    elif user["role"] == "judge":
-         part_resp = sb.table("event_participants").select("*").eq("event_id", event_id).eq("user_id", user["id"]).execute()
-         if not part_resp.data:
-             raise HTTPException(status_code=403, detail="Access denied")
+    is_organizer = team.data["events"]["created_by"] == user["id"]
+    part_resp = sb.table("judge_profiles").select("*").eq("event_id", event_id).eq("user_id", user["id"]).execute()
+    is_judge = len(part_resp.data) > 0
+    
+    if not is_organizer and not is_judge:
+        raise HTTPException(status_code=403, detail="Unauthorized role: Must be an organizer or judge for this event")
 
     rounds = team.data["events"]["judging_rounds"]
     current_round = next((r for r in rounds if r["round"] == round), None)
@@ -69,15 +64,22 @@ async def get_ai_suggested_score(team_id: str, round: int = Query(...), user=Dep
 @router.post("/verify-suggestion")
 async def verify_suggestion(team_id: str = Body(...), suggestion: str = Body(...), user=Depends(get_current_user)):
     """v1.5: Verify if a team implemented a judge's suggestion."""
-    if user["role"] not in ["judge", "organizer"]:
-        raise HTTPException(status_code=403, detail="Unauthorized role")
-    
     sb = get_supabase()
     
     # 1. Get team and event info
     team = sb.table("teams").select("*, events(*)").eq("id", team_id).single().execute()
     if not team.data:
         raise HTTPException(status_code=404, detail="Team not found")
+        
+    event_id = team.data["event_id"]
+    
+    # Check access
+    is_organizer = team.data["events"]["created_by"] == user["id"]
+    part_resp = sb.table("judge_profiles").select("*").eq("event_id", event_id).eq("user_id", user["id"]).execute()
+    is_judge = len(part_resp.data) > 0
+    
+    if not is_organizer and not is_judge:
+        raise HTTPException(status_code=403, detail="Unauthorized role: Must be an organizer or judge for this event")
     
     repo_url = team.data.get("repo_url")
     if not repo_url:

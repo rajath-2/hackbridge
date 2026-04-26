@@ -72,6 +72,7 @@ class ScoreSubmit(BaseModel):
     event_id: str
     round: int
     rubric_scores: Dict[str, float]
+    notes: Optional[str] = None
 # --- CLI Relay & Debug ---
 class GroqRelayPayload(BaseModel):
     cli_token: str

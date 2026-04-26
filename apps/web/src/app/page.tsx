@@ -3,12 +3,12 @@
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { 
-  ShieldCheck, 
-  Zap, 
-  Users, 
-  Terminal as TerminalIcon, 
-  Cpu, 
+import {
+  ShieldCheck,
+  Zap,
+  Users,
+  Terminal as TerminalIcon,
+  Cpu,
   Globe,
   ArrowRight
 } from "lucide-react"
@@ -36,7 +36,7 @@ export default function LandingPage() {
               </Button>
             </Link>
             <Link href="/signup">
-              <Button className="bg-[var(--signal-live)] text-[var(--void)] border-transparent font-bold font-ui text-[11px] uppercase tracking-widest px-6 transition-all hover:scale-[1.02]">
+              <Button className="bg-[var(--signal-live)] !text-[var(--void)] border-transparent font-bold font-ui text-[11px] uppercase tracking-widest px-6 transition-all hover:scale-[1.02] shadow-none">
                 Initialize
               </Button>
             </Link>
@@ -49,15 +49,15 @@ export default function LandingPage() {
         <section className="relative pt-32 pb-20 px-6 overflow-hidden">
           {/* Animated Background */}
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--signal-live)]/10 blur-[150px] rounded-full"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--signal-info)]/10 blur-[150px] rounded-full"></div>
-            <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-[var(--signal-alert)]/5 blur-[120px] rounded-full"></div>
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--signal-live)]/5 blur-[150px] rounded-full"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--signal-info)]/5 blur-[150px] rounded-full"></div>
+            <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-[var(--signal-alert)]/3 blur-[120px] rounded-full"></div>
           </div>
 
           <div className="max-w-7xl mx-auto relative z-10">
             <div className="flex flex-col lg:flex-row items-center gap-16">
               <div className="flex-1 text-center lg:text-left">
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6 }}
@@ -72,12 +72,12 @@ export default function LandingPage() {
                     FOR HACKATHONS
                   </h1>
                   <p className="font-body text-lg text-[var(--text-secondary)] mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                    The OS for modern innovation events. Real-time matching, integrity monitoring, 
+                    The OS for modern innovation events. Real-time matching, integrity monitoring,
                     and advanced logistics orchestration — all in one unified command center.
                   </p>
                   <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                     <Link href="/signup">
-                      <Button className="h-14 px-10 bg-[var(--signal-live)] text-[var(--void)] border-transparent font-bold t-section uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_20px_rgba(0,255,194,0.3)]">
+                      <Button className="h-14 px-10 bg-[var(--signal-live)]/90 !text-[var(--void)] border-transparent font-bold t-section uppercase tracking-widest hover:scale-105 hover:bg-[var(--signal-live)] transition-all shadow-md shadow-[var(--signal-live)]/5">
                         Launch Network
                       </Button>
                     </Link>
@@ -90,7 +90,7 @@ export default function LandingPage() {
                 </motion.div>
               </div>
 
-              <motion.div 
+              <motion.div
                 className="flex-1 w-full max-w-[600px]"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -135,32 +135,32 @@ export default function LandingPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <FeatureCard 
+              <FeatureCard
                 icon={<Cpu className="w-6 h-6" />}
                 title="AI MATCHING"
                 description="Vector-based team formation using skill synergy, project intent, and personality alignment."
               />
-              <FeatureCard 
+              <FeatureCard
                 icon={<ShieldCheck className="w-6 h-6" />}
                 title="INTEGRITY SHIELD"
                 description="Real-time plagiarism detection and velocity audit to ensure radical transparency in development."
               />
-              <FeatureCard 
+              <FeatureCard
                 icon={<Zap className="w-6 h-6" />}
                 title="REAL-TIME OPS"
                 description="Live dashboard for organizers with instant mentor pings and participant health monitoring."
               />
-              <FeatureCard 
+              <FeatureCard
                 icon={<Users className="w-6 h-6" />}
                 title="MENTOR NETWORK"
                 description="Seamlessly bridge the gap between experts and innovators with priority-based request handling."
               />
-              <FeatureCard 
+              <FeatureCard
                 icon={<Globe className="w-6 h-6" />}
                 title="EVENT AGNOSTIC"
                 description="From local meetups to global 10k+ participant hackathons, the infrastructure scales automatically."
               />
-              <FeatureCard 
+              <FeatureCard
                 icon={<TerminalIcon className="w-6 h-6" />}
                 title="CLI FIRST"
                 description="Power tools for developers to initialize projects, submit code, and track progress without leaving the terminal."
@@ -171,18 +171,18 @@ export default function LandingPage() {
 
         {/* CTA Section */}
         <section className="py-32 px-6 relative overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none opacity-20">
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[var(--signal-live)] blur-[180px] rounded-full"></div>
+          <div className="absolute inset-0 pointer-events-none opacity-10">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[var(--signal-live)] blur-[180px] rounded-full"></div>
           </div>
-          
+
           <div className="max-w-4xl mx-auto text-center relative z-10">
             <h2 className="t-display text-5xl md:text-6xl mb-8">READY TO BRIDGE THE GAP?</h2>
             <p className="font-body text-xl text-[var(--text-secondary)] mb-12">
-              Join the growing network of elite organizers and innovators. 
+              Join the growing network of elite organizers and innovators.
               The future of hackathons is decentralized, intelligent, and real-time.
             </p>
             <Link href="/signup">
-              <Button className="h-16 px-12 bg-[var(--signal-live)] text-[var(--void)] border-transparent font-bold t-section uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-4 mx-auto group shadow-[0_0_30px_rgba(0,255,194,0.2)]">
+              <Button className="h-16 px-12 bg-[var(--signal-live)]/90 !text-[var(--void)] border-transparent font-bold t-section uppercase tracking-widest hover:scale-105 hover:bg-[var(--signal-live)] transition-all flex items-center gap-4 mx-auto group shadow-md shadow-[var(--signal-live)]/5">
                 Initialize Your Event
                 <ArrowRight className="group-hover:translate-x-2 transition-transform" />
               </Button>
@@ -215,7 +215,7 @@ export default function LandingPage() {
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
   return (
-    <motion.div 
+    <motion.div
       whileHover={{ y: -8 }}
       className="p-8 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg hover:border-[var(--signal-live)] transition-all group shadow-lg"
     >

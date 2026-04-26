@@ -28,9 +28,9 @@ export default function JudgeDashboard() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [judgeSuggestion, setJudgeSuggestion] = useState("")
-  const [verifyingSuggestion, setVerifyingSuggestion] = useState(false)
-  const [verificationResult, setVerificationResult] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<"scoring" | "roster" | "history">("scoring")
+  const [historyScores, setHistoryScores] = useState<any[]>([])
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
 
 
 
@@ -112,6 +112,7 @@ export default function JudgeDashboard() {
         .upsert({
           event_id: eventData.id,
           user_id: user.id,
+          role: "judge"
         }, { onConflict: "event_id, user_id" })
 
       await supabase
@@ -151,27 +152,24 @@ export default function JudgeDashboard() {
   useEffect(() => {
     if (selectedTeam) {
       fetchAiSuggestion(selectedTeam.id)
-      setVerificationResult(null)
-      setJudgeSuggestion("")
     }
   }, [selectedTeam])
 
-  const handleVerifySuggestion = async () => {
-    if (!selectedTeam || !judgeSuggestion.trim()) return
-    setVerifyingSuggestion(true)
-    setVerificationResult(null)
-    try {
-      const res = await api.post("/scores/verify-suggestion", {
-        team_id: selectedTeam.id,
-        suggestion: judgeSuggestion
-      })
-      setVerificationResult(res)
-    } catch (err) {
-      console.error("Verification failed:", err)
-    } finally {
-      setVerifyingSuggestion(false)
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (activeTab === "history" && user && event) {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from("scores")
+          .select("*, teams(name, team_code)")
+          .eq("judge_id", user.id)
+          .eq("event_id", event.id)
+          .order("created_at", { ascending: false })
+        if (data) setHistoryScores(data)
+      }
     }
-  }
+    fetchHistory()
+  }, [activeTab, user, event])
 
   const handleSubmitScore = async () => {
     if (!selectedTeam || !event) return;
@@ -182,7 +180,7 @@ export default function JudgeDashboard() {
         event_id: event.id,
         round: 1,
         rubric_scores: Object.keys(editableScores).length > 0 ? editableScores : { "Code Quality": 8, "Complexity": 7, "Completion": 8 },
-        notes: `Scores submitted via Judge Dashboard. Suggestion verified: ${judgeSuggestion || 'None'}`
+        notes: `Scores submitted via Judge Dashboard.`
       })
       alert("Scores submitted successfully!")
     } catch (err) {
@@ -266,14 +264,7 @@ export default function JudgeDashboard() {
                 )}
               </div>
               
-              <div className="border-t border-[var(--border)] pt-6">
-                <ResumeUpload
-                  role="judge"
-                  eventId={event?.id}
-                  existingProfile={judgeProfile || undefined}
-                  onUploadComplete={(analysis) => setJudgeProfile(analysis)}
-                />
-              </div>
+
             </div>
           </div>
         </main>
@@ -306,23 +297,29 @@ export default function JudgeDashboard() {
         {/* 5.4 Sidebar */}
         <aside className="w-[240px] flex-shrink-0 bg-[var(--surface-1)] border-r border-[var(--border)] hidden lg:flex flex-col sticky top-[32px] h-[calc(100vh-32px)]">
           <div className="py-5 px-6 t-section uppercase">Judging Station</div>
-          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-primary)] border-[var(--signal-ping)] bg-[var(--signal-ping)]/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveTab("scoring")}
+            className={`px-6 justify-start rounded-none h-[40px] border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'scoring' ? "text-[var(--text-primary)] border-[var(--signal-ping)] bg-[var(--signal-ping)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
+          >
             <LayoutGrid size={14} />
             Scoring Matrix
           </Button>
-          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveTab("roster")}
+            className={`px-6 justify-start rounded-none h-[40px] border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'roster' ? "text-[var(--text-primary)] border-[var(--signal-ping)] bg-[var(--signal-ping)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
+          >
             <Users size={14} />
             Team Roster
           </Button>
-          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveTab("history")}
+            className={`px-6 justify-start rounded-none h-[40px] border-l-[3px] font-ui text-[12px] uppercase tracking-wider ${activeTab === 'history' ? "text-[var(--text-primary)] border-[var(--signal-ping)] bg-[var(--signal-ping)]/5" : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5"}`}
+          >
             <History size={14} />
             Historical Scores
-          </Button>
-          
-          <div className="mt-8 py-2 px-6 t-micro uppercase opacity-50">Verification</div>
-          <Button variant="ghost" className="px-6 justify-start rounded-none h-[40px] border-l-[3px] text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:bg-white/5 font-ui text-[12px] uppercase tracking-wider">
-            <FileBadge size={14} />
-            Credentials
           </Button>
 
 
@@ -378,148 +375,181 @@ export default function JudgeDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px] mb-[24px]">
               
-              {/* Team Queue */}
-              <div className="lg:col-span-4 flex flex-col gap-3">
-                <div className="t-section uppercase">Node Queue</div>
-                <div className="flex flex-col gap-2">
-                  {teams.length > 0 ? teams.map(team => (
-                    <div
-                      key={team.id}
-                      onClick={() => setSelectedTeam(team)}
-                      className={`p-4 border rounded-[4px] cursor-pointer flex justify-between items-center transition-all ${selectedTeam?.id === team.id
-                          ? "bg-[var(--signal-ping)]/10 border-[var(--signal-ping)] shadow-[0_0_15px_rgba(255,184,0,0.1)]"
-                          : "bg-[var(--surface-1)] border-[var(--border)] hover:border-[var(--border-hot)]"
-                        }`}
-                    >
-                      <div className="flex flex-col">
-                        <span className={`font-ui text-[14px] font-bold uppercase ${selectedTeam?.id === team.id ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
-                          {team.name}
-                        </span>
-                        <span className="t-micro uppercase opacity-50">{team.team_code}</span>
-                      </div>
-                      {selectedTeam?.id === team.id && (
-                        <span className="t-micro px-1.5 py-0.5 bg-[var(--signal-ping)] text-[var(--void)] font-bold rounded-[2px] uppercase">Active</span>
-                      )}
-                    </div>
-                  )) : (
-                    <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] p-8 text-center">
-                      <span className="t-label italic uppercase opacity-50">No nodes detected in this sector.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Scoring Panel */}
-              <div className="lg:col-span-8 flex flex-col gap-3">
-                <div className="t-section uppercase">
-                  Evaluation Terminal · {selectedTeam?.name || "AWAITING_SELECTION"}
-                </div>
-
-                {selectedTeam ? (
-                  <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6 flex flex-col gap-8 shadow-[0_0_30px_rgba(0,0,0,0.2)]">
-                    <div className="flex justify-between items-start border-b border-[var(--border)] pb-6">
-                      <div>
-                        <h2 className="t-display text-[20px] text-[var(--text-primary)] uppercase">AI_SYNERGY_ANALYSIS</h2>
-                        <p className="t-micro uppercase opacity-50 mt-1">Llama 3 cross-referenced commit architecture</p>
-                      </div>
-                      <div className="t-micro text-[var(--signal-info)] border border-[var(--signal-info)] rounded-[3px] px-2 py-1 uppercase font-bold tracking-widest">
-                        GROQ_VALIDATED
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                      {Object.keys(editableScores).length > 0 ? (
-                        Object.entries(editableScores).map(([crit, val]: [string, any]) => (
-                          <ScoreBar 
-                            key={crit} 
-                            criterion={crit} 
-                            score={val} 
-                            onChange={(newScore) => setEditableScores((prev: any) => ({ ...prev, [crit]: newScore }))}
-                          />
-                        ))
-                      ) : (
-                        <>
-                          <ScoreBar criterion="Code Quality" score={0} />
-                          <ScoreBar criterion="Complexity" score={0} />
-                          <ScoreBar criterion="Completion" score={0} />
-                          <ScoreBar criterion="Innovation" score={0} />
-                        </>
-                      )}
-                    </div>
-
-                    <div className="p-4 bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] font-body text-[13px] text-[var(--text-primary)] leading-relaxed italic relative">
-                       <span className="absolute -top-2 left-4 px-2 bg-[var(--surface-1)] t-micro uppercase tracking-widest opacity-50">AI_COMMENTARY</span>
-                       &ldquo;{aiAnalysis?.rationale || "Scanning team repository... Analyzing code complexity and track alignment. Please hold."}&rdquo;
-                    </div>
-
-                    {/* Suggestion Verification Section */}
-                    <div className="pt-2 flex flex-col gap-4">
-                       <div className="flex flex-col gap-2">
-                          <label className="t-micro uppercase opacity-50">Verify Suggestion Implementation</label>
-                          <div className="flex gap-2">
-                             <Input 
-                                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] h-10 font-body text-[12px] text-[var(--text-primary)] focus:border-[var(--signal-ping)] outline-none flex-1 font-mono"
-                                placeholder="ASK: DID THEY IMPLEMENT THE IDEA I SUGGESTED?"
-                                value={judgeSuggestion}
-                                onChange={(e) => setJudgeSuggestion(e.target.value)}
-                             />
-                             <Button 
-                                onClick={handleVerifySuggestion}
-                                disabled={verifyingSuggestion || !judgeSuggestion.trim()}
-                                className="h-10 px-4 bg-[var(--signal-ping)]/10 border border-[var(--signal-ping)]/30 text-[var(--signal-ping)] t-micro uppercase tracking-widest font-bold hover:bg-[var(--signal-ping)]/20 transition-all"
-                             >
-                                {verifyingSuggestion ? "SCANNING_CODE..." : "VERIFY_AI"}
-                             </Button>
+              {/* Scoring View */}
+              {activeTab === "scoring" && (
+                <>
+                  <div className="lg:col-span-4 flex flex-col gap-3">
+                    <div className="t-section uppercase">Node Queue</div>
+                    <div className="flex flex-col gap-2">
+                      {teams.length > 0 ? teams.map(team => (
+                        <div
+                          key={team.id}
+                          onClick={() => setSelectedTeam(team)}
+                          className={`p-4 border rounded-[4px] cursor-pointer flex justify-between items-center transition-all ${selectedTeam?.id === team.id
+                              ? "bg-[var(--signal-ping)]/10 border-[var(--signal-ping)] shadow-[0_0_15px_rgba(255,184,0,0.1)]"
+                              : "bg-[var(--surface-1)] border-[var(--border)] hover:border-[var(--border-hot)]"
+                            }`}
+                        >
+                          <div className="flex flex-col">
+                            <span className={`font-ui text-[14px] font-bold uppercase ${selectedTeam?.id === team.id ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
+                              {team.name}
+                            </span>
+                            <span className="t-micro uppercase opacity-50">{team.team_code}</span>
                           </div>
-                          {verificationResult && (
-                             <div className={`p-4 mt-2 border rounded-[4px] font-body text-[12px] leading-relaxed flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-500 ${verificationResult.implemented ? "bg-[var(--signal-clean)]/5 border-[var(--signal-clean)]/30 text-[var(--signal-clean)]" : "bg-[var(--signal-alert)]/5 border-[var(--signal-alert)]/30 text-[var(--signal-alert)]"}`}>
-                                <div className="flex justify-between items-center">
-                                   <span className="font-bold uppercase tracking-widest text-[10px]">
-                                      {verificationResult.implemented ? "✓ IMPLEMENTATION_DETECTED" : "✗ NO_IMPLEMENTATION_FOUND"}
-                                   </span>
-                                   <span className="t-micro opacity-60">AI Confidence: {verificationResult.confidence || 0}%</span>
-                                </div>
-                                <p className="opacity-90 leading-normal">{verificationResult.rationale}</p>
-                             </div>
+                          {selectedTeam?.id === team.id && (
+                            <span className="t-micro px-1.5 py-0.5 bg-[var(--signal-ping)] text-[var(--void)] font-bold rounded-[2px] uppercase">Active</span>
                           )}
-                       </div>
+                        </div>
+                      )) : (
+                        <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] p-8 text-center">
+                          <span className="t-label italic uppercase opacity-50">No nodes detected in this sector.</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Scoring Panel */}
+                  <div className="lg:col-span-8 flex flex-col gap-3">
+                    <div className="t-section uppercase">
+                      Evaluation Terminal · {selectedTeam?.name || "AWAITING_SELECTION"}
                     </div>
 
-                    <div className="pt-6 border-t border-[var(--border)] flex flex-col gap-4">
-                       <div className="flex flex-col gap-2">
-                          <label className="t-micro uppercase opacity-50">Evaluator Notes</label>
-                          <textarea className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-3 font-body text-[13px] text-[var(--text-primary)] h-24 focus:border-[var(--signal-ping)] outline-none transition-all" placeholder="Enter manual feedback here..."></textarea>
-                       </div>
-                       <Button
-                        className="w-full h-14 font-bold bg-[var(--signal-ping)] text-[var(--void)] text-[14px] uppercase tracking-[0.1em]"
-                        onClick={handleSubmitScore}
-                        disabled={submitting}
+                    {selectedTeam ? (
+                      <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6 flex flex-col gap-8 shadow-[0_0_30px_rgba(0,0,0,0.2)]">
+                        <div className="flex justify-between items-start border-b border-[var(--border)] pb-6">
+                          <div>
+                            <h2 className="t-display text-[20px] text-[var(--text-primary)] uppercase">AI_SYNERGY_ANALYSIS</h2>
+                            <p className="t-micro uppercase opacity-50 mt-1">Llama 3 cross-referenced commit architecture</p>
+                          </div>
+                          <div className="t-micro text-[var(--signal-info)] border border-[var(--signal-info)] rounded-[3px] px-2 py-1 uppercase font-bold tracking-widest">
+                            GROQ_VALIDATED
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                          {Object.keys(editableScores).length > 0 ? (
+                            Object.entries(editableScores).map(([crit, val]: [string, any]) => (
+                              <ScoreBar 
+                                key={crit} 
+                                criterion={crit} 
+                                score={val} 
+                                onChange={(newScore) => setEditableScores((prev: any) => ({ ...prev, [crit]: newScore }))}
+                              />
+                            ))
+                          ) : (
+                            <>
+                              <ScoreBar criterion="Code Quality" score={0} />
+                              <ScoreBar criterion="Complexity" score={0} />
+                              <ScoreBar criterion="Completion" score={0} />
+                              <ScoreBar criterion="Innovation" score={0} />
+                            </>
+                          )}
+                        </div>
+
+                        <div className="p-4 bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] font-body text-[13px] text-[var(--text-primary)] leading-relaxed italic relative">
+                           <span className="absolute -top-2 left-4 px-2 bg-[var(--surface-1)] t-micro uppercase tracking-widest opacity-50">AI_COMMENTARY</span>
+                           &ldquo;{aiAnalysis?.rationale || "Scanning team repository... Analyzing code complexity and track alignment. Please hold."}&rdquo;
+                        </div>
+
+                        <div className="pt-6 border-t border-[var(--border)] flex flex-col gap-4">
+                           <div className="flex flex-col gap-2">
+                              <label className="t-micro uppercase opacity-50">Evaluator Notes</label>
+                              <textarea className="bg-[var(--surface-2)] border border-[var(--border)] rounded-[4px] p-3 font-body text-[13px] text-[var(--text-primary)] h-24 focus:border-[var(--signal-ping)] outline-none transition-all" placeholder="Enter manual feedback here..."></textarea>
+                           </div>
+                           <Button
+                            className="w-full h-14 font-bold bg-[var(--signal-ping)] text-[var(--void)] text-[14px] uppercase tracking-[0.1em]"
+                            onClick={handleSubmitScore}
+                            disabled={submitting}
+                          >
+                            {submitting ? "UPLOADING_SCORES..." : "EXECUTE_SUBMISSION"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] flex items-center justify-center py-32">
+                        <span className="t-label italic uppercase opacity-50 animate-pulse">Select a target node to begin evaluation protocol</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Roster View */}
+              {activeTab === "roster" && (
+                <div className="col-span-12 flex flex-col gap-3">
+                  <div className="t-section uppercase">Active Teams in Event</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {teams.map(team => (
+                      <div 
+                        key={team.id} 
+                        onClick={() => setExpandedTeamId(prev => prev === team.id ? null : team.id)}
+                        className="p-4 bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] flex flex-col gap-2 transition-all hover:border-[var(--border-hot)] cursor-pointer"
                       >
-                        {submitting ? "UPLOADING_SCORES..." : "EXECUTE_SUBMISSION"}
-                      </Button>
-                    </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-ui text-[14px] font-bold uppercase text-[var(--text-primary)]">{team.name}</span>
+                          {team.selected_track && (
+                            <span className="t-micro bg-[var(--signal-ping)]/10 text-[var(--signal-ping)] px-2 py-0.5 rounded-[2px] w-fit">
+                              {team.selected_track}
+                            </span>
+                          )}
+                        </div>
+                        <span className="t-micro uppercase opacity-50">{team.team_code}</span>
+                        
+                        {expandedTeamId === team.id && team.team_members && (
+                          <div className="mt-3 pt-3 border-t border-[var(--border)] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <span className="t-micro uppercase text-[var(--text-secondary)] opacity-70 mb-1">Roster Details</span>
+                            {team.team_members.map((tm: any, i: number) => (
+                              <div key={i} className="flex justify-between items-center text-[12px] font-body bg-[var(--surface-2)] p-2 rounded-[2px] border border-[var(--border)]">
+                                <span className="text-[var(--text-primary)] font-bold">{tm.users?.name || "Unknown Hacker"}</span>
+                                <span className="text-[var(--text-muted)] opacity-70">{tm.users?.email || "No Email"}</span>
+                              </div>
+                            ))}
+                            {team.team_members.length === 0 && (
+                               <span className="text-[12px] text-[var(--text-muted)] italic py-2">No members registered yet.</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <div className="bg-[var(--surface-1)] border border-[var(--border)] border-dashed rounded-[4px] flex items-center justify-center py-32">
-                    <span className="t-label italic uppercase opacity-50 animate-pulse">Select a target node to begin evaluation protocol</span>
+                </div>
+              )}
+
+              {/* History View */}
+              {activeTab === "history" && (
+                <div className="col-span-12 flex flex-col gap-3">
+                  <div className="t-section uppercase">Past Evaluations</div>
+                  <div className="flex flex-col gap-2">
+                    {historyScores.length > 0 ? historyScores.map(score => (
+                      <div key={score.id} className="p-4 bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] flex flex-col gap-2">
+                        <div className="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                          <span className="font-ui text-[14px] font-bold uppercase text-[var(--text-primary)]">{score.teams?.name}</span>
+                          <span className="t-micro uppercase opacity-50">Round {score.round}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                          {Object.entries(score.rubric_scores || {}).map(([c, v]: [string, any]) => (
+                             <div key={c} className="flex justify-between items-center t-micro">
+                               <span className="opacity-70">{c}</span>
+                               <span className="font-bold text-[var(--signal-ping)] text-[12px]">{v}</span>
+                             </div>
+                          ))}
+                        </div>
+                        {score.notes && (
+                          <div className="mt-2 text-[12px] text-[var(--text-secondary)] italic">"{score.notes}"</div>
+                        )}
+                      </div>
+                    )) : (
+                      <div className="p-8 text-center border border-dashed border-[var(--border)] rounded-[4px] text-[var(--text-muted)] italic">
+                        NO_EVALUATIONS_FOUND
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
             </div>
 
-            {/* Resume Upload Section */}
-            <div className="mb-[64px] max-w-[500px]">
-               <div className="t-section uppercase mb-3">Evaluator Credentials</div>
-               <div className="bg-[var(--surface-1)] border border-[var(--border)] rounded-[4px] p-6">
-                  <ResumeUpload 
-                    role="judge" 
-                    eventId={event?.id}
-                    existingProfile={judgeProfile || undefined}
-                    onUploadComplete={(analysis) => setJudgeProfile(analysis)}
-                  />
-               </div>
-            </div>
+            {/* Removed Resume Upload Section per request */}
           </div>
 
           {/* 5.10 Bottom Status Bar */}

@@ -58,9 +58,9 @@ export default function SignupPage() {
 
       {/* Animated Background - Matching Landing Page */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--signal-live)]/10 blur-[150px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--signal-info)]/10 blur-[150px] rounded-full"></div>
-        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-[var(--signal-alert)]/5 blur-[120px] rounded-full"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--signal-live)]/5 blur-[150px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--signal-info)]/5 blur-[150px] rounded-full"></div>
+        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-[var(--signal-alert)]/3 blur-[120px] rounded-full"></div>
       </div>
 
       <motion.div 
@@ -155,7 +155,7 @@ export default function SignupPage() {
             </div>
             <Button 
               type="submit" 
-              className="w-full h-14 mt-4 bg-[var(--signal-live)] text-[var(--void)] font-bold t-section uppercase tracking-widest shadow-[0_0_20px_rgba(0,255,194,0.3)] hover:brightness-110"
+              className="w-full h-14 mt-4 bg-[var(--signal-live)]/90 !text-[var(--void)] font-bold t-section uppercase tracking-widest shadow-md shadow-[var(--signal-live)]/5 hover:bg-[var(--signal-live)] transition-all"
               disabled={loading}
             >
               {loading ? "REGISTERING..." : "INITIALIZE_NODE"}
